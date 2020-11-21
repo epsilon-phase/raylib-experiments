@@ -4,6 +4,7 @@ struct CircularBuffer {
   unsigned int used;
   unsigned int push_index;
   void **data;
+  // This is what they call "Generic programming" Right?
   void (*destructor)(void *);
 };
 struct CircularBuffer *allocateCircularBuffer(unsigned int capacity,
