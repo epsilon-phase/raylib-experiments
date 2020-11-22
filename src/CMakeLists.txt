@@ -1,2 +1,2 @@
-TARGET_SOURCES(particle-dabbling PUBLIC main.c circular_buffer.c)
-TARGET_SOURCES(circular_buffer_test PUBLIC circular_buffer.c circular_buffer_test.c)
+add_subdirectory(particle)
+add_subdirectory(utility)

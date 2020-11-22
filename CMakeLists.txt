@@ -11,6 +11,11 @@ set(CMAKE_POLICY_DEFAULT_CMP0069 NEW) #enable interprocedural optimization for a
 cmake_policy(SET CMP0076 NEW)
 add_executable(particle-dabbling)
 add_executable(circular_buffer_test)
-target_link_libraries(raylib-experiment-1 raylib)
+add_library(utility STATIC)
+target_link_libraries(particle-dabbling raylib utility)
+
+#add_subdirectory(src/particle)
+
+
+add_sanitizers(particle-dabbling)
 add_subdirectory(src)
-add_sanitizers(raylib-experiment-1)
