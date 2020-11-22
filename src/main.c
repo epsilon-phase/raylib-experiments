@@ -4,7 +4,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#define PARTICLE_MAX_SIZE 3
+#include <string.h>
+#define PARTICLE_MAX_SIZE 12
 #define PARTICLE_MAX_SPEED 4.0
 typedef struct {
   Vector2 position, velocity;
@@ -24,12 +25,14 @@ typedef struct {
   Vector2 position;
   int lifetime_max;
   int particle_count;
-  Particle wheelhouse[0];
+  Particle *wheelhouse;
 } ParticleEmitter;
 const static Color colors[] = {
-    {255, 0, 0, 255}, // Red
-    {0, 255, 0, 255}, // green
-    {0, 0, 255, 255}  // Blue
+    {255, 0, 0, 255},  // Red
+    {0, 255, 0, 255},  // green
+    {0, 0, 255, 255},  // Blue
+    {55, 55, 55, 255}, // Darkish gray
+
 };
 void draw_particle(const Particle *p);
 void particle_step(ParticleEmitter *emitter, Particle *p);
@@ -37,21 +40,33 @@ ParticleEmitter *getNewEmitter(int x, int y, int particlecount,
                                int maxlifetime);
 void emitter_step(ParticleEmitter *e);
 void draw_emitter(const ParticleEmitter *e);
+void free_emitter(ParticleEmitter *e);
 int main() {
   int screenwidth = 800, screenheight = 450;
   InitWindow(screenwidth, screenheight, "try");
   SetTargetFPS(60);
   ParticleEmitter *e = getNewEmitter(400, 225, 900, 500);
-  struct CircularBuffer *emitters = allocateCircularBuffer(10, &free);
+  struct CircularBuffer *emitters =
+      allocateCircularBuffer(10, &free_emitter, NULL);
   bool ButtonDown = false;
   while (!WindowShouldClose()) {
     e->position = GetMousePosition();
 
-    if (!ButtonDown && (ButtonDown = IsMouseButtonDown(MOUSE_LEFT_BUTTON))) {
+    if (!ButtonDown && (ButtonDown += IsMouseButtonDown(MOUSE_LEFT_BUTTON))) {
       Vector2 c = GetMousePosition();
       push_value_cb(emitters, getNewEmitter(c.x, c.y, 300, 100));
     } else if (!IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
       ButtonDown = false;
+    } else {
+      ParticleEmitter *emitter = last_value_cb(emitters);
+      emitter->lifetime_max += IsKeyDown(KEY_LEFT_SHIFT) ? 5 : 1;
+      if (IsKeyDown(KEY_LEFT_SHIFT)) {
+        emitter->wheelhouse = reallocarray(
+            emitter->wheelhouse, emitter->particle_count + 5, sizeof(Particle));
+        memset(&emitter->wheelhouse[emitter->particle_count], 0,
+               5 * sizeof(Particle));
+        emitter->particle_count += 5;
+      }
     }
     BeginDrawing();
     ClearBackground(RAYWHITE);
@@ -75,6 +90,8 @@ int main() {
       }
     }
   }
+  free_emitter(e);
+  cb_free(emitters);
   return 0;
 }
 void draw_particle(const Particle *p) {
@@ -101,17 +118,19 @@ void particle_step(ParticleEmitter *emitter, Particle *p) {
   p->velocity.x = clamp(-PARTICLE_MAX_SPEED, p->velocity.x, PARTICLE_MAX_SPEED);
   p->velocity.y = clamp(-PARTICLE_MAX_SPEED, p->velocity.y, PARTICLE_MAX_SPEED);
   p->lifetime_remaining--;
-  p->size = PARTICLE_MAX_SIZE *
-            (p->lifetime_remaining / (float)emitter->lifetime_max);
+  p->size = clamp(1.0,
+                  PARTICLE_MAX_SIZE * p->lifetime_remaining /
+                      (float)emitter->lifetime_max,
+                  PARTICLE_MAX_SIZE);
 }
 ParticleEmitter *getNewEmitter(int x, int y, int particlecount,
                                int maxlifetime) {
-  ParticleEmitter *result =
-      calloc(1, sizeof(ParticleEmitter) + sizeof(Particle) * particlecount);
+  ParticleEmitter *result = calloc(1, sizeof(ParticleEmitter));
   result->particle_count = particlecount;
   result->position.x = x;
   result->position.y = y;
   result->lifetime_max = maxlifetime;
+  result->wheelhouse = calloc(particlecount, sizeof(Particle));
   return result;
 }
 void emitter_step(ParticleEmitter *e) {
@@ -126,4 +145,8 @@ void draw_emitter(const ParticleEmitter *e) {
   for (i = 0; i < e->particle_count; i++) {
     draw_particle(&e->wheelhouse[i]);
   }
+}
+void free_emitter(ParticleEmitter *e) {
+  free(e->wheelhouse);
+  free(e);
 }

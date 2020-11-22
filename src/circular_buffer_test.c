@@ -5,7 +5,7 @@
 int contents_correct(const struct CircularBuffer *cb, const char **expected,
                      size_t size);
 int main() {
-  struct CircularBuffer *cb = allocateCircularBuffer(3, &free);
+  struct CircularBuffer *cb = allocateCircularBuffer(3, &free, NULL);
   const char *test_strings[] = {"Hello", "World", "Yes", NULL};
   int i;
   for (i = 0; test_strings[i]; i++) {
@@ -17,12 +17,20 @@ int main() {
       printf("%s\n", cb->data[i]);
   if (!contents_correct(cb, test_strings, 3))
     printf("Incorrect result of non-reflowing pushing");
-  push_value_cb(cb, "Goodbye");
+  push_value_cb(cb, strdup("Goodbye"));
   for (int i = 0; i < cb->capacity; i++)
     printf("%s\n", cb->data[i]);
   if (!contents_correct(cb, (const char *[3]){"Goodbye", "World", "Yes"}, 3)) {
     printf("Overflowed pushing results in correct outcomes\n");
   }
+  pop_value_cb(cb);
+  for (int i = 0; i < cb->capacity; i++)
+    if (cb->data[i])
+      printf("%s\n", cb->data[i]);
+    else
+      printf("NULL\n");
+  if (!contents_correct(cb, (const char *[3]){NULL, "World", "Yes"}, 3))
+    printf("Failed to pop value correctly\n");
 }
 int contents_correct(const struct CircularBuffer *cb, const char **expected,
                      size_t size) {
