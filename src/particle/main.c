@@ -1,5 +1,6 @@
 #include "./circular_buffer.h"
 #include "raylib.h"
+#include "utility_math.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -13,19 +14,7 @@ typedef struct {
   float size;
   Color c;
 } Particle;
-// Clamp a value between a and b
-float clamp(float a, float p, float b) {
-  if (p < a)
-    return a;
-  if (p > b)
-    return b;
-  return p;
-}
-/**
- * convenience function equivalent to clamp(-a,p,a)
- **/
-float clamp_pos_neg(float a, float p) { return clamp(-a, p, a); }
-float linear_interp(float a, float b, float t) { return a * (t - 1) + b * t; }
+
 typedef struct {
   Vector2 position;
   int lifetime_max;
