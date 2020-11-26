@@ -18,6 +18,7 @@ void step_mass(mass *, unsigned int n);
 mass init_random_mass();
 float mass_velocity(const mass *m);
 Vector2 mass_reflect(mass *a, mass *b);
+float mass_radius(const mass *m);
 int main(void) {
   // Initialization
   //--------------------------------------------------------------------------------------
@@ -63,8 +64,10 @@ int main(void) {
 }
 
 void draw_mass(const mass *m) {
-  DrawCircle(m->position.x, m->position.y, SIZE_SCALING_FACTOR * logf(m->mass),
-             BLACK);
+  // Draw a blue outline
+  DrawCircle(m->position.x, m->position.y, mass_radius(m) + 2.0f, BLUE);
+  // Draw the inner bit
+  DrawCircle(m->position.x, m->position.y, mass_radius(m), BLACK);
   Vector2 end = v2_add(
       v2_scale(m->accelleration, 20.0 * m->mass / GetFrameTime()), m->position);
   DrawLineEx(m->position, end, 3, RED);
@@ -90,7 +93,7 @@ void step_mass(mass *m, unsigned int count) {
               distance(m[i].position, m[j].position));
       a->accelleration =
           v2_add(a->accelleration, v2_scale(vel_addition, 1.0f / m[i].mass));
-      mass_reflect(a, b);
+      // mass_reflect(a, b);
     }
 
     a->velocity = v2_add(a->velocity, a->accelleration);
@@ -135,3 +138,4 @@ Vector2 mass_reflect(mass *a, mass *b) {
 float mass_velocity(const mass *m) {
   return distance((Vector2){0, 0}, m->velocity);
 }
+float mass_radius(const mass *m) { return logf(m->mass) * SIZE_SCALING_FACTOR; }
