@@ -10,10 +10,12 @@ SET(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(CMAKE_POLICY_DEFAULT_CMP0069 NEW) #enable interprocedural optimization for all projects
 cmake_policy(SET CMP0076 NEW)
 add_executable(particle-dabbling)
+add_executable(nbody)
 add_executable(circular_buffer_test)
 add_library(utility STATIC)
 target_link_libraries(particle-dabbling raylib utility)
-
+target_link_libraries(nbody raylib utility)
+target_link_libraries(utility raylib)
 #add_subdirectory(src/particle)
 
 

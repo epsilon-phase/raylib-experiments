@@ -1,5 +1,5 @@
 #pragma once
-
+#include "raylib.h"
 float clamp_f(float a, float x, float b);
 int clamp_i(int a, int x, int b);
 long double clamp_ld(long double a, long double x, long double b);
@@ -31,3 +31,12 @@ double interpd(double a, double b, double t);
  * @returns The interpolated position
  **/
 float hermitef(float a, float b, float m0, float m1, float t);
+
+float distance(Vector2 a, Vector2 b);
+
+Vector2 v2_add(Vector2 a, Vector2 b);
+Vector2 v2_sub(Vector2 a, Vector2 b);
+Vector2 v2_scale(Vector2 a, float t);
+Vector2 v2_negate(Vector2 a);
+float v2_magnitude(Vector2 a);
+Vector2 v2_reflect(Vector2 velocity, Vector2 normal);

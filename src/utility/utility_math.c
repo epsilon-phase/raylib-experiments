@@ -22,3 +22,17 @@ float hermitef(float a, float b, float m0, float m1, float t) {
          (-2 * powf(t, 3) + 3 * powf(t, 2)) * b +
          (powf(t, 3) - powf(t, 2)) * m1;
 }
+float distance(Vector2 a, Vector2 b) {
+  return sqrtf(powf(a.x - b.x, 2) + powf(a.y - b.y, 2));
+}
+Vector2 v2_add(Vector2 a, Vector2 b) { return (Vector2){a.x + b.x, a.y + b.y}; }
+Vector2 v2_sub(Vector2 a, Vector2 b) { return (Vector2){a.x - b.x, a.y - b.y}; }
+Vector2 v2_scale(Vector2 a, float t) { return (Vector2){a.x * t, a.y * t}; }
+Vector2 v2_negate(Vector2 a) { return (Vector2){-a.x, -a.y}; }
+float v2_dot(Vector2 a, Vector2 b) { return a.x * b.x + a.y * b.y; }
+float v2_magnitude(Vector2 a) { return distance((Vector2){0.0, 0.0}, a); }
+Vector2 v2_reflect(Vector2 velocity, Vector2 normal) {
+  Vector2 n =
+      v2_add(v2_scale(normal, -2.0f * v2_dot(velocity, normal)), velocity);
+  return n;
+}
