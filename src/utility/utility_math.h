@@ -18,7 +18,11 @@ double clamp_d(double a, double x, double b);
 float interpf(float a, float b, float t);
 double interpd(double a, double b, double t);
 #define interp(A, B, T)                                                        \
-  _Generic(T, double : interpd, float : interpf, default : interpf);
+  _Generic(T, double                                                           \
+           : interpd, float                                                    \
+           : interpf, Vector2                                                  \
+           : v2_interp, default                                                \
+           : interpf);
 /**
  * Hermite interpolation, for when linear interpolation isn't *smooth* enough
  * for you
@@ -36,7 +40,17 @@ float distance(Vector2 a, Vector2 b);
 
 Vector2 v2_add(Vector2 a, Vector2 b);
 Vector2 v2_sub(Vector2 a, Vector2 b);
+/**
+ * Return a normalized vector pointing from a to b
+ * @param a The origin point
+ * @param b The end point
+ * @returns The normalized vector pointing from a to b
+ * */
+Vector2 v2_pointing_to(Vector2 a, Vector2 b);
 Vector2 v2_scale(Vector2 a, float t);
 Vector2 v2_negate(Vector2 a);
+Vector2 v2_interpolate(Vector2 a, Vector2 b, float t);
 float v2_magnitude(Vector2 a);
 Vector2 v2_reflect(Vector2 velocity, Vector2 normal);
+// Get a number between a and b from rand()
+int rand_interval(int a, int b);

@@ -4,10 +4,13 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#define GRAVITATION_CONSTANT 0.001
+
+// An excellent constant, simply,,, the best
+#define GRAVITATION_CONSTANT 0.001f
 #define MAX_MASS 30
 #define VELOCITY_DECAY 0.8f
 #define SIZE_SCALING_FACTOR 5.0f
+#define MAX_INITIAL_VELOCITY 2
 typedef struct {
   Vector2 position, velocity, accelleration;
   float mass;
@@ -75,15 +78,13 @@ void draw_mass(const mass *m) {
 
 void step_mass(mass *m, unsigned int count) {
   unsigned int i = 0;
-  // Zero out the accelerations
-  for (int i = 0; i < count; i++) {
-    m[i].accelleration = (Vector2){0.0, 0.0};
-  }
   // Update velocities first
   for (i = 0; i < count; i++) {
     mass *a = &m[i];
-    unsigned int j;
-    for (j = 0; j < count; j++) {
+    // Compute the acceleration first
+    m[i].accelleration = (Vector2){0.0f, 0.0f};
+
+    for (unsigned int j = 0; j < count; j++) {
       if (i == j)
         continue;
       mass *b = &m[j];
@@ -93,9 +94,12 @@ void step_mass(mass *m, unsigned int count) {
               distance(m[i].position, m[j].position));
       a->accelleration =
           v2_add(a->accelleration, v2_scale(vel_addition, 1.0f / m[i].mass));
-      // mass_reflect(a, b);
+      Vector2 atmp = mass_reflect(a, b);
+      Vector2 btmp = mass_reflect(b, a);
+      a->velocity = atmp;
+      b->velocity = btmp;
     }
-
+    // Then add it to the velocity
     a->velocity = v2_add(a->velocity, a->accelleration);
   }
   // Then the positions
@@ -116,22 +120,21 @@ mass init_random_mass() {
   mass m;
   m.mass = rand() % MAX_MASS + 1;
   m.position = (Vector2){rand() % GetScreenWidth(), rand() % GetScreenHeight()};
-  m.velocity = (Vector2){rand() % 4 - 2, rand() % 4 - 2};
+  m.velocity =
+      (Vector2){rand_interval(-MAX_INITIAL_VELOCITY, MAX_INITIAL_VELOCITY),
+                rand_interval(-MAX_INITIAL_VELOCITY, MAX_INITIAL_VELOCITY)};
   return m;
 }
 Vector2 mass_reflect(mass *a, mass *b) {
   Vector2 ret = a->velocity;
-  if (CheckCollisionCircles(a->position, SIZE_SCALING_FACTOR * logf(a->mass),
-                            b->position, SIZE_SCALING_FACTOR * logf(b->mass))) {
+  if (CheckCollisionCircles(a->position, mass_radius(a), b->position,
+                            mass_radius(b))) {
     Vector2 tangent;
     tangent = v2_sub(a->position, b->position);
     tangent = v2_scale(tangent, 1.0f / v2_magnitude(tangent));
     ret = v2_reflect(ret, tangent);
     ret = v2_add(v2_scale(ret, (a->mass - b->mass) / (a->mass + b->mass)),
                  v2_scale(b->velocity, (2.0f * b->mass) / (a->mass + b->mass)));
-    b->velocity = v2_add(
-        v2_scale(a->velocity, 2.0f * a->mass / (a->mass + b->mass)),
-        v2_scale(b->velocity, (b->mass - a->mass) / (a->mass + b->mass)));
   }
   return ret;
 }
