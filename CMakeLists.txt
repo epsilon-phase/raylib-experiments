@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.12..3.15)
 project(rayfuck VERSION 0.0.0
   DESCRIPTION "Some fucking around"
   LANGUAGES C)
+find_package(OpenMP)
 add_subdirectory(third-party/raylib)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/third-party/sanitizers-cmake/cmake" ${CMAKE_MODULE_PATH})
 find_package(Sanitizers)
@@ -14,7 +15,7 @@ add_executable(nbody)
 add_executable(circular_buffer_test)
 add_library(utility STATIC)
 target_link_libraries(particle-dabbling raylib utility)
-target_link_libraries(nbody raylib utility)
+target_link_libraries(nbody raylib utility OpenMP::OpenMP_C)
 target_link_libraries(utility raylib)
 #add_subdirectory(src/particle)
 

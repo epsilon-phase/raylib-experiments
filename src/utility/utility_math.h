@@ -54,3 +54,4 @@ float v2_magnitude(Vector2 a);
 Vector2 v2_reflect(Vector2 velocity, Vector2 normal);
 // Get a number between a and b from rand()
 int rand_interval(int a, int b);
+float wrap_around(float start, float end, float number);

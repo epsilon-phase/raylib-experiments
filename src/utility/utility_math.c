@@ -45,3 +45,10 @@ Vector2 v2_reflect(Vector2 velocity, Vector2 normal) {
   return n;
 }
 int rand_interval(int a, int b) { return a + rand() % (b - a); }
+float wrap_around(float start, float end, float number) {
+  if (number < start)
+    return end;
+  if (number > end)
+    return start;
+  return number;
+}
