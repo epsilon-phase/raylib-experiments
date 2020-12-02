@@ -8,20 +8,23 @@
 #define max(X, Y) X > Y ? X : Y
 // An excellent constant, simply,,, the best
 const float GRAVITATION_CONSTANT = 0.001f;
-const int MAX_SPAWN_MASS = 30;
+static int MAX_SPAWN_MASS = 30;
 static float VELOCITY_DECAY = 0.8f;
 const float VELOCITY_BELOW_DECAY = 20.0f;
 const float SIZE_SCALING_FACTOR = 5.0f;
 const float MAX_INITIAL_VELOCITY = 2;
-const float MAX_MASS = 3000000;
+const float MAX_MASS = 1e18f;
 static int paint_acceleration = 1;
+static float last_frame_time;
+static Vector2 screen_bounds;
+static const Vector2 zero_v = (Vector2){0.0f, 0.0f};
 typedef struct {
   Vector2 position, velocity, accelleration;
   float mass;
 } mass;
 
 void draw_mass(const mass *m);
-void step_mass(mass *, unsigned int n);
+void step_mass(mass *, unsigned int n, unsigned int steps);
 mass init_random_mass();
 float mass_speed(const mass *m);
 Vector2 mass_reflect(mass *a, mass *b);
@@ -29,6 +32,7 @@ float mass_radius(const mass *m);
 void absorb_mass(mass *a, mass *b);
 void mass_collision(mass *a, mass *b);
 void reset_masses(mass *array, int count);
+inline Vector2 body_body_acceleration(const mass *, const mass *);
 int sortalgo(const void *A, const void *B) {
   const mass *a = A, *b = B;
   return a->mass > b->mass ? -1 : (b->mass == a->mass ? 0 : 1);
@@ -57,6 +61,8 @@ int main(void) {
     //----------------------------------------------------------------------------------
     // TODO: Update your variables here
     //----------------------------------------------------------------------------------
+    last_frame_time = GetFrameTime();
+    screen_bounds = (Vector2){GetScreenWidth(), GetScreenHeight()};
     if (IsKeyPressed(KEY_R))
       reset_masses(bodies, body_count);
     if (IsKeyDown(KEY_UP)) {
@@ -79,8 +85,13 @@ int main(void) {
     if (IsKeyDown(KEY_DOWN)) {
       steps_per_tick = steps_per_tick > 1 ? steps_per_tick - 1 : 1;
     }
-    for (int i = 0; i < steps_per_tick; i++)
-      step_mass(bodies, body_count);
+    if (IsKeyDown(KEY_MINUS)) {
+      MAX_SPAWN_MASS = max(30, MAX_SPAWN_MASS - 1);
+    }
+    if (IsKeyDown(KEY_EQUAL))
+      MAX_SPAWN_MASS++;
+
+    step_mass(bodies, body_count, steps_per_tick);
 
     // Draw
     //----------------------------------------------------------------------------------
@@ -91,6 +102,13 @@ int main(void) {
 
     for (unsigned int i = 0; i < body_count; i++)
       draw_mass(&bodies[i]);
+    const char *status =
+        TextFormat("Body Count: %i Steps per Frame: %i, FPS: %.2f", body_count,
+                   steps_per_tick, 1.0f / last_frame_time);
+    int blank_size = MeasureText(status, 16);
+    DrawRectangle(100, 100, blank_size, 16, GRAY);
+    DrawText(status, 100, 100, 16, BLACK);
+
     EndDrawing();
     // printf("%f\n", 1.0 / GetFrameTime());
     //----------------------------------------------------------------------------------
@@ -110,11 +128,15 @@ void draw_mass(const mass *m) {
   DrawCircle(m->position.x, m->position.y, mass_radius(m) + 2.0f, BLUE);
   // Draw the inner bit
   DrawCircle(m->position.x, m->position.y, mass_radius(m), BLACK);
-  Vector2 end =
-      v2_add(v2_scale(m->accelleration, 20.0 * mass_radius(m) / GetFrameTime()),
-             m->position);
-
-  DrawLineEx(v2_add(m->position, m->velocity), m->position, 3, MAGENTA);
+  Vector2 end = v2_add(
+      v2_scale(m->accelleration, 20.0 * mass_radius(m) / last_frame_time),
+      m->position);
+  Vector2 vend = m->velocity;
+  if (v2_magnitude(vend) > mass_radius(m)) {
+    vend = v2_scale(v2_normalize(vend), mass_radius(m));
+  }
+  vend = v2_add(m->position, vend);
+  DrawLineEx(vend, m->position, 3, MAGENTA);
   if (paint_acceleration)
     DrawLineEx(m->position, end, 3, RED);
   sprintf(tmp, "%0.1f", m->mass);
@@ -122,49 +144,45 @@ void draw_mass(const mass *m) {
            DARKGREEN);
 }
 
-void step_mass(mass *m, unsigned int count) {
-  unsigned int i = 0;
-  // Update velocities first
-  for (i = 0; i < count; i++) {
-    mass *a = &m[i];
-    // Compute the acceleration first
-    m[i].accelleration = (Vector2){0.0f, 0.0f};
+void step_mass(mass *m, unsigned int count, unsigned int steps) {
+  while (steps > 0) {
+    steps--;
+    unsigned int i = 0;
+// Update velocities first
+#pragma omp parallel for
+    for (i = 0; i < count; i++) {
+      mass *a = &m[i];
+      // Compute the acceleration first
+      m[i].accelleration = (Vector2){0.0f, 0.0f};
 
-    for (unsigned int j = 0; j < count; j++) {
-      if (i == j)
-        continue;
-      mass *b = &m[j];
-      Vector2 vel_addition = v2_scale(
-          v2_sub(b->position, a->position),
-          GetFrameTime() * GRAVITATION_CONSTANT * (m[i].mass * m[j].mass) /
-              powf(distance(m[i].position, m[j].position), 2.0f));
-      a->accelleration =
-          v2_add(a->accelleration, v2_scale(vel_addition, 1.0f / m[i].mass));
-      mass_collision(a, b);
+      for (unsigned int j = 0; j < count; j++) {
+        if (i == j)
+          continue;
+        mass *b = &m[j];
+        a->accelleration =
+            v2_add(a->accelleration, body_body_acceleration(a, b));
+        if (a->mass > b->mass)
+          mass_collision(a, b);
+        else if (a->mass < b->mass)
+          mass_collision(b, a);
+      }
+      // Then add it to the velocity
+      a->velocity = v2_add(a->velocity, a->accelleration);
+      // If the speed is too great, then decay it.
+      // It's no fun to watch things moving too fast to simulate properly
+      // Sure we could simply reduce the velocity, but then that removes all the
+      // fun of the acceleration
+      if (mass_speed(a) > VELOCITY_BELOW_DECAY) {
+        a->velocity = v2_scale(a->velocity, VELOCITY_DECAY);
+      }
     }
-    // Then add it to the velocity
-    a->velocity = v2_add(a->velocity, a->accelleration);
-    if (mass_speed(a) > VELOCITY_BELOW_DECAY) {
-      a->velocity = v2_scale(a->velocity, VELOCITY_DECAY);
-    }
-  }
 
-  // Then the positions
-  for (i = 0; i < count; i++) {
-    m[i].position =
-        v2_add(m[i].position, v2_scale(m[i].velocity, GetFrameTime()));
-    m[i].position.x = wrap_around(0, GetScreenWidth(), m[i].position.x);
-    m[i].position.y = wrap_around(0, GetScreenHeight(), m[i].position.y);
-    // if ((m[i].position.x < 0.0 && m[i].velocity.x < 0.0) ||
-    //     (m[i].position.x > GetScreenWidth() && m[i].velocity.x > 0.0)) {
-    //   m[i].velocity.x *= -1;
-    //   m[i].velocity.x *= 1.01;
-    // }
-    // if ((m[i].position.y < 0 && m[i].velocity.y < 0) ||
-    //     (m[i].position.y > GetScreenHeight() && m[i].velocity.y > 0)) {
-    //   m[i].velocity.y *= -1;
-    //   m[i].velocity.y *= 1.01;
-    // }
+    // Then the positions
+    for (i = 0; i < count; i++) {
+      m[i].position =
+          v2_add(m[i].position, v2_scale(m[i].velocity, last_frame_time));
+      m[i].position = wrap_around(zero_v, screen_bounds, m[i].position);
+    }
   }
 }
 mass init_random_mass() {
@@ -222,4 +240,13 @@ void mass_collision(mass *a, mass *b) {
 void reset_masses(mass *array, int count) {
   for (int i = 0; i < count; i++)
     array[i] = init_random_mass();
+}
+Vector2 body_body_acceleration(const mass *a, const mass *b) {
+  Vector2 result;
+  result =
+      v2_scale(v2_sub(b->position, a->position),
+               last_frame_time * GRAVITATION_CONSTANT * (a->mass * b->mass) /
+                   powf(distance(a->position, b->position), 2.0f));
+  result = v2_scale(result, 1.0f / a->mass);
+  return result;
 }

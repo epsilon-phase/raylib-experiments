@@ -48,13 +48,23 @@ inline float hermitef(float a, float b, float m0, float m1, float t) {
 }
 // Get a number between a and b from rand()
 inline int rand_interval(int a, int b) { return a + rand() % (b - a); }
-inline float wrap_around(float start, float end, float number) {
+inline float wrap_aroundf(float start, float end, float number) {
   if (number < start)
     return end;
   if (number > end)
     return start;
   return number;
 }
+inline Vector2 wrap_around_v2(Vector2 start, Vector2 end, Vector2 pos) {
+  pos.x = wrap_aroundf(start.x, end.x, pos.x);
+  pos.y = wrap_aroundf(start.y, end.y, pos.y);
+  return pos;
+}
+#define wrap_around(A, B, T)                                                   \
+  _Generic(A, float                                                            \
+           : wrap_aroundf, Vector2                                             \
+           : wrap_around_v2, default                                           \
+           : wrap_aroundf)(A, B, T)
 /**
  * Clamp a number between A and B
  * */
