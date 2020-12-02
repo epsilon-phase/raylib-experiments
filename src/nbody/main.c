@@ -150,15 +150,14 @@ void step_mass(mass *m, unsigned int count, unsigned int steps) {
     unsigned int i = 0;
 // Update velocities first
 #pragma omp parallel for
-    for (i = 0; i < count; i++) {
-      mass *a = &m[i];
+    for (mass *a = m; a < m + count; a++) {
       // Compute the acceleration first
-      m[i].accelleration = (Vector2){0.0f, 0.0f};
+      a->accelleration = (Vector2){0.0f, 0.0f};
 
-      for (unsigned int j = 0; j < count; j++) {
-        if (i == j)
+      for (mass *b = m; b < m + count; b++) {
+        if (a == b)
           continue;
-        mass *b = &m[j];
+
         a->accelleration =
             v2_add(a->accelleration, body_body_acceleration(a, b));
         if (a->mass > b->mass)
@@ -215,11 +214,17 @@ float mass_radius(const mass *m) { return logf(m->mass) * SIZE_SCALING_FACTOR; }
 
 void absorb_mass(mass *a, mass *b) {
   Vector2 new_vel = a->velocity;
-  new_vel = v2_add(v2_scale(a->velocity, 1 / (a->mass + b->mass)),
-                   v2_scale(b->velocity, 1.0f / (b->mass + a->mass)));
+  float new_mass = a->mass + b->mass;
+  // Conservation of energy
+  // m1*v1 + m2*v2 = (m1+m2)*v3
+  // v3=(m1*v1)/(m1+m2)+(m2*v2)/(m1+m2)
+  new_vel = v2_scale(v2_scale(a->velocity, a->mass), 1.0f / new_mass);
+  new_vel = v2_add(new_vel,
+                   v2_scale(v2_scale(b->velocity, b->mass), 1.0f / new_mass));
   // new_vel = v2_scale(
   //     v2_add(v2_scale(a->velocity, a->mass), v2_scale(b->velocity, b->mass)),
   //     1.0f / (a->mass + b->mass));
+  a->velocity = new_vel;
   a->accelleration =
       v2_add(v2_scale(a->accelleration, a->mass / (a->mass + b->mass)),
              v2_scale(b->accelleration, b->mass / (a->mass + b->mass)));
@@ -243,10 +248,13 @@ void reset_masses(mass *array, int count) {
 }
 Vector2 body_body_acceleration(const mass *a, const mass *b) {
   Vector2 result;
-  result =
-      v2_scale(v2_sub(b->position, a->position),
-               last_frame_time * GRAVITATION_CONSTANT * (a->mass * b->mass) /
-                   powf(distance(a->position, b->position), 2.0f));
+  result = v2_pointing_to(a->position, b->position);
+  result = v2_scale(
+      result, last_frame_time * GRAVITATION_CONSTANT * (a->mass * b->mass) /
+                  (powf(distance(a->position, b->position), 2.0f)));
+  // v2_scale(v2_sub(b->position, a->position),
+  // last_frame_time * GRAVITATION_CONSTANT * (a->mass * b->mass) /
+  // powf(distance(a->position, b->position), 2.0f));
   result = v2_scale(result, 1.0f / a->mass);
   return result;
 }
