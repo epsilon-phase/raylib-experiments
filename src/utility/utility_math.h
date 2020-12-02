@@ -106,7 +106,7 @@ inline Vector2 v2_scale(Vector2 a, float t) {
  * @returns The normalized vector pointing from a to b
  * */
 inline Vector2 v2_pointing_to(Vector2 a, Vector2 b) {
-  Vector2 c = v2_sub(a, b);
+  Vector2 c = v2_sub(b, a);
   return v2_scale(c, 1.0f / v2_magnitude(c));
 }
 
