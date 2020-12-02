@@ -1,28 +1,34 @@
-#pragma once
+#ifndef UTILITY_MATH_H
+#define UTILITY_MATH_H
 #include "raylib.h"
-float clamp_f(float a, float x, float b);
-int clamp_i(int a, int x, int b);
-long double clamp_ld(long double a, long double x, long double b);
-double clamp_d(double a, double x, double b);
-/**
- * Clamp a number between A and B
- * */
-#define clamp(A, X, B)                                                         \
-  _Generic(X, double                                                           \
-           : clamp_d, long double                                              \
-           : clamp_ld, float                                                   \
-           : clamp_f, default                                                  \
-           : clamp_i)(A, X, B)
-#define clamp_pos_neg(A, X) clamp(-A, X, A)
-
-float interpf(float a, float b, float t);
-double interpd(double a, double b, double t);
-#define interp(A, B, T)                                                        \
-  _Generic(T, double                                                           \
-           : interpd, float                                                    \
-           : interpf, Vector2                                                  \
-           : v2_interp, default                                                \
-           : interpf);
+#include <math.h>
+#include <stdlib.h>
+inline float clamp_f(float a, float x, float b) {
+  if (a > x)
+    return a;
+  if (b < x)
+    return b;
+  return x;
+}
+inline int clamp_i(int a, int x, int b) { return a > x ? a : (x > b ? b : x); }
+inline double clamp_d(double a, double x, double b) {
+  return a > x ? a : (x > b ? b : x);
+}
+inline long double clamp_ld(long double a, long double x, long double b) {
+  return a > x ? a : (x > b ? b : x);
+}
+inline float interpf(float a, float b, float t) {
+  return a * (1.0 - t) + b * t;
+}
+inline double interpd(double a, double b, double t) {
+  return a * (1.0 - t) + b * t;
+}
+inline Color interp_color(Color a, Color b, float t) {
+  return (Color){(unsigned char)floor(interpf(a.r, b.r, t)),
+                 (unsigned char)floor(interpf(a.g, b.g, t)),
+                 (unsigned char)floor(interpf(a.b, b.b, t)),
+                 (unsigned char)floor(interpf(a.a, b.a, t))};
+}
 /**
  * Hermite interpolation, for when linear interpolation isn't *smooth* enough
  * for you
@@ -34,24 +40,79 @@ double interpd(double a, double b, double t);
  * @param t The position on the interval between 0 and 1
  * @returns The interpolated position
  **/
-float hermitef(float a, float b, float m0, float m1, float t);
+inline float hermitef(float a, float b, float m0, float m1, float t) {
+  return (2 * powf(t, 3) - 3 * powf(t, 2) + 1) +
+         (powf(t, 3) - 2 * powf(t, 2) + t) * m0 +
+         (-2 * powf(t, 3) + 3 * powf(t, 2)) * b +
+         (powf(t, 3) - powf(t, 2)) * m1;
+}
+// Get a number between a and b from rand()
+inline int rand_interval(int a, int b) { return a + rand() % (b - a); }
+inline float wrap_around(float start, float end, float number) {
+  if (number < start)
+    return end;
+  if (number > end)
+    return start;
+  return number;
+}
+/**
+ * Clamp a number between A and B
+ * */
+#define clamp(A, X, B)                                                         \
+  _Generic(X, double                                                           \
+           : clamp_d, long double                                              \
+           : clamp_ld, float                                                   \
+           : clamp_f, default                                                  \
+           : clamp_i)(A, X, B)
+#define clamp_pos_neg(A, X) clamp(-A, X, A)
 
-float distance(Vector2 a, Vector2 b);
+#define interp(A, B, T)                                                        \
+  _Generic(A, double                                                           \
+           : interpd, float                                                    \
+           : interpf, Vector2                                                  \
+           : v2_interp, Color                                                  \
+           : interp_color, default                                             \
+           : interpf);
 
-Vector2 v2_add(Vector2 a, Vector2 b);
-Vector2 v2_sub(Vector2 a, Vector2 b);
+inline float distance(Vector2 a, Vector2 b) {
+  return sqrtf(powf(a.x - b.x, 2) + powf(a.y - b.y, 2));
+}
+inline Vector2 v2_add(Vector2 a, Vector2 b) {
+  return (Vector2){a.x + b.x, a.y + b.y};
+}
+inline Vector2 v2_sub(Vector2 a, Vector2 b) {
+  return (Vector2){a.x - b.x, a.y - b.y};
+}
+inline float v2_magnitude(Vector2 a) {
+  return distance((Vector2){0.0, 0.0}, a);
+}
+inline Vector2 v2_scale(Vector2 a, float t) {
+  return (Vector2){a.x * t, a.y * t};
+}
 /**
  * Return a normalized vector pointing from a to b
  * @param a The origin point
  * @param b The end point
  * @returns The normalized vector pointing from a to b
  * */
-Vector2 v2_pointing_to(Vector2 a, Vector2 b);
-Vector2 v2_scale(Vector2 a, float t);
-Vector2 v2_negate(Vector2 a);
-Vector2 v2_interpolate(Vector2 a, Vector2 b, float t);
-float v2_magnitude(Vector2 a);
-Vector2 v2_reflect(Vector2 velocity, Vector2 normal);
-// Get a number between a and b from rand()
-int rand_interval(int a, int b);
-float wrap_around(float start, float end, float number);
+inline Vector2 v2_pointing_to(Vector2 a, Vector2 b) {
+  Vector2 c = v2_sub(a, b);
+  return v2_scale(c, 1.0f / v2_magnitude(c));
+}
+
+inline Vector2 v2_negate(Vector2 a) { return (Vector2){-a.x, -a.y}; }
+inline Vector2 v2_interpolate(Vector2 a, Vector2 b, float t) {
+  return (Vector2){interpf(a.x, b.x, t), interpf(a.y, b.y, t)};
+}
+inline float v2_dot(Vector2 a, Vector2 b) { return a.x * b.x + a.y * b.y; }
+
+inline Vector2 v2_reflect(Vector2 velocity, Vector2 normal) {
+  Vector2 n =
+      v2_add(v2_scale(normal, -2.0f * v2_dot(velocity, normal)), velocity);
+  return n;
+}
+inline Vector2 v2_normalize(Vector2 a) {
+  return v2_scale(a, 1.0f / v2_magnitude(a));
+}
+
+#endif
