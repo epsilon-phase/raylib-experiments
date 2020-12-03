@@ -2,6 +2,7 @@
 #include "utility_math.h"
 
 #include <math.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #define min(X, Y) X > Y ? Y : X
@@ -15,8 +16,8 @@ const float SIZE_SCALING_FACTOR = 5.0f;
 const float MAX_INITIAL_VELOCITY = 2;
 const float MAX_MASS = 1e18f;
 static int paint_acceleration = 1;
-static float last_frame_time;
-static Vector2 screen_bounds;
+static float last_frame_time = 1.0f / 60.0f;
+static Vector2 screen_bounds = (Vector2){800, 450};
 static const Vector2 zero_v = (Vector2){0.0f, 0.0f};
 typedef struct {
   Vector2 position, velocity, accelleration;
@@ -53,7 +54,9 @@ int main(void) {
   for (unsigned int i = 0; i < body_count; i++) {
     bodies[i] = init_random_mass();
   }
+  bool use_threads = true;
   int steps_per_tick = 1;
+  bool show_help = false;
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
@@ -61,18 +64,18 @@ int main(void) {
     //----------------------------------------------------------------------------------
     // TODO: Update your variables here
     //----------------------------------------------------------------------------------
-    last_frame_time = GetFrameTime();
+    // last_frame_time = GetFrameTime();
     screen_bounds = (Vector2){GetScreenWidth(), GetScreenHeight()};
     if (IsKeyPressed(KEY_R))
       reset_masses(bodies, body_count);
     if (IsKeyDown(KEY_UP)) {
       steps_per_tick++;
     }
-    if (IsKeyDown(KEY_LEFT)) {
+    if (IsKeyDown(KEY_RIGHT)) {
       body_count = min(body_count_o, body_count + 1);
       // VELOCITY_DECAY *= 0.999;
     }
-    if (IsKeyDown(KEY_RIGHT)) {
+    if (IsKeyDown(KEY_LEFT)) {
       body_count = max(1, body_count - 1);
 
       qsort(bodies, body_count, sizeof(mass), sortalgo);
@@ -90,7 +93,17 @@ int main(void) {
     }
     if (IsKeyDown(KEY_EQUAL))
       MAX_SPAWN_MASS++;
-
+    if (IsKeyPressed(KEY_T)) {
+      use_threads = !use_threads;
+      omp_set_num_threads(use_threads ? omp_get_num_procs() : 1);
+      if (!use_threads)
+        omp_set_schedule(omp_sched_static, body_count);
+      else
+        omp_set_schedule(omp_sched_static, body_count / omp_get_num_threads());
+    }
+    if (IsKeyPressed(KEY_SLASH) || IsKeyPressed(KEY_H)) {
+      show_help = !show_help;
+    }
     step_mass(bodies, body_count, steps_per_tick);
 
     // Draw
@@ -102,13 +115,30 @@ int main(void) {
 
     for (unsigned int i = 0; i < body_count; i++)
       draw_mass(&bodies[i]);
-    const char *status =
-        TextFormat("Body Count: %i Steps per Frame: %i, FPS: %.2f", body_count,
-                   steps_per_tick, 1.0f / last_frame_time);
+    const char *status = TextFormat(
+        "Body Count: %i Steps per Frame: %i FPS: %0.2f, Threads: %s, "
+        "Press h for help",
+        body_count, steps_per_tick, 1.0f / GetFrameTime(),
+        use_threads ? "Yes" : "No");
     int blank_size = MeasureText(status, 16);
     DrawRectangle(100, 100, blank_size, 16, GRAY);
     DrawText(status, 100, 100, 16, BLACK);
-
+    if (show_help) {
+      const char *help =
+          "Press up and down arrows to increase or decrease steps per tick\n"
+          "Press left and right arrows to increase or decrease the number of "
+          "bodies shown\n"
+          "Press T to toggle threads\n"
+          "Press A to toggle showing acceleration vectors\n"
+          "Press R to reset with new bodies\n"
+          "Press h or ? to show help";
+      int help_width = MeasureText(
+          "Press left and right arrows to increase or decrease the number of "
+          "bodies shown",
+          16);
+      DrawRectangle(100, 120, help_width, 16 * 9, GRAY);
+      DrawText(help, 100, 120, 16, BLACK);
+    }
     EndDrawing();
     // printf("%f\n", 1.0 / GetFrameTime());
     //----------------------------------------------------------------------------------
@@ -149,7 +179,7 @@ void step_mass(mass *m, unsigned int count, unsigned int steps) {
     steps--;
     unsigned int i = 0;
 // Update velocities first
-#pragma omp parallel for
+#pragma omp parallel for schedule(static)
     for (mass *a = m; a < m + count; a++) {
       // Compute the acceleration first
       a->accelleration = (Vector2){0.0f, 0.0f};
@@ -188,7 +218,8 @@ mass init_random_mass() {
   mass m;
 
   m.mass = rand() % MAX_SPAWN_MASS + 1;
-  m.position = (Vector2){rand() % GetScreenWidth(), rand() % GetScreenHeight()};
+  m.position =
+      (Vector2){rand() % (int)screen_bounds.x, rand() % (int)screen_bounds.y};
   m.velocity =
       (Vector2){rand_interval(-MAX_INITIAL_VELOCITY, MAX_INITIAL_VELOCITY),
                 rand_interval(-MAX_INITIAL_VELOCITY, MAX_INITIAL_VELOCITY)};
