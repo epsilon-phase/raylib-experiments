@@ -1,3 +1,4 @@
+#include "pointer_utils.h"
 #include "raylib.h"
 #include "utility_math.h"
 
@@ -19,6 +20,9 @@ static int paint_acceleration = 1;
 static float last_frame_time = 1.0f / 60.0f;
 static Vector2 screen_bounds = (Vector2){800, 450};
 static const Vector2 zero_v = (Vector2){0.0f, 0.0f};
+static unsigned int collision_count = 0;
+static unsigned int step_count = 0;
+static float wall_time = 0.0f;
 typedef struct {
   Vector2 position, velocity, accelleration;
   float mass;
@@ -38,6 +42,7 @@ int sortalgo(const void *A, const void *B) {
   const mass *a = A, *b = B;
   return a->mass > b->mass ? -1 : (b->mass == a->mass ? 0 : 1);
 }
+const mass *bigger_mass(const mass *a, const mass *b);
 int main(void) {
   // Initialization
   //--------------------------------------------------------------------------------------
@@ -55,8 +60,10 @@ int main(void) {
     bodies[i] = init_random_mass();
   }
   bool use_threads = true;
-  int steps_per_tick = 1;
   bool show_help = false;
+  bool show_statistics = false;
+  int steps_per_tick = 1;
+
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
@@ -66,8 +73,12 @@ int main(void) {
     //----------------------------------------------------------------------------------
     // last_frame_time = GetFrameTime();
     screen_bounds = (Vector2){GetScreenWidth(), GetScreenHeight()};
-    if (IsKeyPressed(KEY_R))
+    if (IsKeyPressed(KEY_R)) {
       reset_masses(bodies, body_count);
+      collision_count = 0;
+      step_count = 0;
+      wall_time = 0;
+    }
     if (IsKeyDown(KEY_UP)) {
       steps_per_tick++;
     }
@@ -80,6 +91,9 @@ int main(void) {
 
       qsort(bodies, body_count, sizeof(mass), sortalgo);
       // VELOCITY_DECAY = min(VELOCITY_DECAY * 1.1, 1.0);
+    }
+    if (IsKeyPressed(KEY_S)) {
+      show_statistics = !show_statistics;
     }
     if (IsKeyPressed(KEY_A)) {
       paint_acceleration = !paint_acceleration;
@@ -115,14 +129,15 @@ int main(void) {
 
     for (unsigned int i = 0; i < body_count; i++)
       draw_mass(&bodies[i]);
-    const char *status = TextFormat(
-        "Body Count: %i Steps per Frame: %i FPS: %0.2f, Threads: %s, "
-        "Press h for help",
-        body_count, steps_per_tick, 1.0f / GetFrameTime(),
-        use_threads ? "Yes" : "No");
+    const char *status =
+        TextFormat("Body Count: %i Steps per Frame: %i FPS: %0.2f, Threads: "
+                   "%s, max mass spawn: %i, "
+                   "Press h for help",
+                   body_count, steps_per_tick, 1.0f / GetFrameTime(),
+                   use_threads ? "Yes" : "No", MAX_SPAWN_MASS);
     int blank_size = MeasureText(status, 16);
-    DrawRectangle(100, 100, blank_size, 16, GRAY);
-    DrawText(status, 100, 100, 16, BLACK);
+    DrawRectangle(50, 50, blank_size, 16, GRAY);
+    DrawText(status, 50, 50, 16, BLACK);
     if (show_help) {
       const char *help =
           "Press up and down arrows to increase or decrease steps per tick\n"
@@ -131,14 +146,32 @@ int main(void) {
           "Press T to toggle threads\n"
           "Press A to toggle showing acceleration vectors\n"
           "Press R to reset with new bodies\n"
+          "Press - and = to decrease/increase the maximum spawn mass\n"
+          "Press s to toggle the statistics display\n"
           "Press h or ? to show help";
-      int help_width = MeasureText(
-          "Press left and right arrows to increase or decrease the number of "
-          "bodies shown",
-          16);
-      DrawRectangle(100, 120, help_width, 16 * 9, GRAY);
+      Vector2 help_size = MeasureTextEx(GetFontDefault(), help, 16, 1.0);
+      DrawRectangle(100, 120, help_size.x, help_size.y, GRAY);
       DrawText(help, 100, 120, 16, BLACK);
     }
+    if (show_statistics) {
+      const mass *m = find_biggest(
+          bodies, (const void *(*)(const void *, const void *)) & bigger_mass,
+          sizeof(mass), body_count);
+      const char *statistics =
+          TextFormat("Largest Mass: %.1f\n"
+                     "Largest Radius: %.1f\n"
+                     "collision count:%i\n"
+                     "simulated time: %.2f seconds\n"
+                     "Wall time: %.2f seconds\n"
+                     "Dilation factor: %.2f",
+                     m->mass, mass_radius(m), collision_count,
+                     last_frame_time * step_count, wall_time,
+                     (last_frame_time * step_count) / wall_time);
+      Vector2 size = MeasureTextEx(GetFontDefault(), statistics, 16, 1.0);
+      DrawRectangle(68, 68, size.x, size.y, GRAY);
+      DrawText(statistics, 68, 68, 16, BLACK);
+    }
+    wall_time += GetFrameTime();
     EndDrawing();
     // printf("%f\n", 1.0 / GetFrameTime());
     //----------------------------------------------------------------------------------
@@ -190,10 +223,10 @@ void step_mass(mass *m, unsigned int count, unsigned int steps) {
 
         a->accelleration =
             v2_add(a->accelleration, body_body_acceleration(a, b));
-        if (a->mass > b->mass)
-          mass_collision(a, b);
-        else if (a->mass < b->mass)
-          mass_collision(b, a);
+        // if (a->mass > b->mass)
+        //   mass_collision(a, b);
+        // else if (a->mass < b->mass)
+        //   mass_collision(b, a);
       }
       // Then add it to the velocity
       a->velocity = v2_add(a->velocity, a->accelleration);
@@ -212,17 +245,23 @@ void step_mass(mass *m, unsigned int count, unsigned int steps) {
           v2_add(m[i].position, v2_scale(m[i].velocity, last_frame_time));
       m[i].position = wrap_around(zero_v, screen_bounds, m[i].position);
     }
+    for (mass *a = m; a < m + count; a++) {
+      for (mass *b = a + 1; b < m + count; b++) {
+        mass_collision(a, b);
+      }
+    }
+    step_count++;
   }
 }
 mass init_random_mass() {
   mass m;
 
-  m.mass = rand() % MAX_SPAWN_MASS + 1;
+  m.mass = random_float_interval(1.0, MAX_SPAWN_MASS);
   m.position =
       (Vector2){rand() % (int)screen_bounds.x, rand() % (int)screen_bounds.y};
-  m.velocity =
-      (Vector2){rand_interval(-MAX_INITIAL_VELOCITY, MAX_INITIAL_VELOCITY),
-                rand_interval(-MAX_INITIAL_VELOCITY, MAX_INITIAL_VELOCITY)};
+  m.velocity = (Vector2){
+      random_float_interval(-MAX_INITIAL_VELOCITY, MAX_INITIAL_VELOCITY),
+      random_float_interval(-MAX_INITIAL_VELOCITY, MAX_INITIAL_VELOCITY)};
   return m;
 }
 Vector2 mass_reflect(mass *a, mass *b) {
@@ -241,7 +280,9 @@ Vector2 mass_reflect(mass *a, mass *b) {
 float mass_speed(const mass *m) {
   return distance((Vector2){0, 0}, m->velocity);
 }
-float mass_radius(const mass *m) { return logf(m->mass) * SIZE_SCALING_FACTOR; }
+float mass_radius(const mass *m) {
+  return logf(m->mass) / logf(3.0) * SIZE_SCALING_FACTOR;
+}
 
 void absorb_mass(mass *a, mass *b) {
   Vector2 new_vel = a->velocity;
@@ -252,9 +293,6 @@ void absorb_mass(mass *a, mass *b) {
   new_vel = v2_scale(v2_scale(a->velocity, a->mass), 1.0f / new_mass);
   new_vel = v2_add(new_vel,
                    v2_scale(v2_scale(b->velocity, b->mass), 1.0f / new_mass));
-  // new_vel = v2_scale(
-  //     v2_add(v2_scale(a->velocity, a->mass), v2_scale(b->velocity, b->mass)),
-  //     1.0f / (a->mass + b->mass));
   a->velocity = new_vel;
   a->accelleration =
       v2_add(v2_scale(a->accelleration, a->mass / (a->mass + b->mass)),
@@ -271,6 +309,7 @@ void mass_collision(mass *a, mass *b) {
   if (CheckCollisionCircles(a->position, mass_radius(a), b->position,
                             mass_radius(b))) {
     absorb_mass(a, b);
+    collision_count++;
   }
 }
 void reset_masses(mass *array, int count) {
@@ -288,4 +327,9 @@ Vector2 body_body_acceleration(const mass *a, const mass *b) {
   // powf(distance(a->position, b->position), 2.0f));
   result = v2_scale(result, 1.0f / a->mass);
   return result;
+}
+const mass *bigger_mass(const mass *a, const mass *b) {
+  if (a->mass < b->mass)
+    return b;
+  return a;
 }

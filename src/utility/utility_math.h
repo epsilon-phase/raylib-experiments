@@ -3,6 +3,7 @@
 #include "raylib.h"
 #include <math.h>
 #include <stdlib.h>
+#define RANDOM_MAX ((1L << 31) - 1)
 inline float clamp_f(float a, float x, float b) {
   if (a > x)
     return a;
@@ -48,6 +49,11 @@ inline float hermitef(float a, float b, float m0, float m1, float t) {
 }
 // Get a number between a and b from rand()
 inline int rand_interval(int a, int b) { return a + rand() % (b - a); }
+inline long random_interval(long a, long b) { return a + random() % (b - a); }
+inline float random_float_interval(float a, float b) {
+  const long random_max = RANDOM_MAX;
+  return (b - a) * (random() / ((float)random_max)) + a;
+}
 inline float wrap_aroundf(float start, float end, float number) {
   if (number < start)
     return end;
