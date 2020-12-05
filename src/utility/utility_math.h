@@ -1,30 +1,32 @@
-#ifndef UTILITY_MATH_H
-#define UTILITY_MATH_H
+#pragma once
 #include "raylib.h"
 #include <math.h>
 #include <stdlib.h>
 #define RANDOM_MAX ((1L << 31) - 1)
-inline float clamp_f(float a, float x, float b) {
+static inline float clamp_f(float a, float x, float b) {
   if (a > x)
     return a;
   if (b < x)
     return b;
   return x;
 }
-inline int clamp_i(int a, int x, int b) { return a > x ? a : (x > b ? b : x); }
-inline double clamp_d(double a, double x, double b) {
+static inline int clamp_i(int a, int x, int b) {
   return a > x ? a : (x > b ? b : x);
 }
-inline long double clamp_ld(long double a, long double x, long double b) {
+static inline double clamp_d(double a, double x, double b) {
   return a > x ? a : (x > b ? b : x);
 }
-inline float interpf(float a, float b, float t) {
+static inline long double clamp_ld(long double a, long double x,
+                                   long double b) {
+  return a > x ? a : (x > b ? b : x);
+}
+static inline float interpf(float a, float b, float t) {
   return a * (1.0 - t) + b * t;
 }
-inline double interpd(double a, double b, double t) {
+static inline double interpd(double a, double b, double t) {
   return a * (1.0 - t) + b * t;
 }
-inline Color interp_color(Color a, Color b, float t) {
+static inline Color interp_color(Color a, Color b, float t) {
   return (Color){(unsigned char)floor(interpf(a.r, b.r, t)),
                  (unsigned char)floor(interpf(a.g, b.g, t)),
                  (unsigned char)floor(interpf(a.b, b.b, t)),
@@ -41,27 +43,29 @@ inline Color interp_color(Color a, Color b, float t) {
  * @param t The position on the interval between 0 and 1
  * @returns The interpolated position
  **/
-inline float hermitef(float a, float b, float m0, float m1, float t) {
+static inline float hermitef(float a, float b, float m0, float m1, float t) {
   return (2 * powf(t, 3) - 3 * powf(t, 2) + 1) +
          (powf(t, 3) - 2 * powf(t, 2) + t) * m0 +
          (-2 * powf(t, 3) + 3 * powf(t, 2)) * b +
          (powf(t, 3) - powf(t, 2)) * m1;
 }
 // Get a number between a and b from rand()
-inline int rand_interval(int a, int b) { return a + rand() % (b - a); }
-inline long random_interval(long a, long b) { return a + random() % (b - a); }
-inline float random_float_interval(float a, float b) {
+static inline int rand_interval(int a, int b) { return a + rand() % (b - a); }
+static inline long random_interval(long a, long b) {
+  return a + random() % (b - a);
+}
+static inline float random_float_interval(float a, float b) {
   const long random_max = RANDOM_MAX;
   return (b - a) * (random() / ((float)random_max)) + a;
 }
-inline float wrap_aroundf(float start, float end, float number) {
+static inline float wrap_aroundf(float start, float end, float number) {
   if (number < start)
     return end;
   if (number > end)
     return start;
   return number;
 }
-inline Vector2 wrap_around_v2(Vector2 start, Vector2 end, Vector2 pos) {
+static inline Vector2 wrap_around_v2(Vector2 start, Vector2 end, Vector2 pos) {
   pos.x = wrap_aroundf(start.x, end.x, pos.x);
   pos.y = wrap_aroundf(start.y, end.y, pos.y);
   return pos;
@@ -90,19 +94,19 @@ inline Vector2 wrap_around_v2(Vector2 start, Vector2 end, Vector2 pos) {
            : interp_color, default                                             \
            : interpf);
 
-inline float distance(Vector2 a, Vector2 b) {
+static inline float distance(Vector2 a, Vector2 b) {
   return sqrtf(powf(a.x - b.x, 2) + powf(a.y - b.y, 2));
 }
-inline Vector2 v2_add(Vector2 a, Vector2 b) {
+static inline Vector2 v2_add(Vector2 a, Vector2 b) {
   return (Vector2){a.x + b.x, a.y + b.y};
 }
-inline Vector2 v2_sub(Vector2 a, Vector2 b) {
+static inline Vector2 v2_sub(Vector2 a, Vector2 b) {
   return (Vector2){a.x - b.x, a.y - b.y};
 }
-inline float v2_magnitude(Vector2 a) {
+static inline float v2_magnitude(Vector2 a) {
   return distance((Vector2){0.0, 0.0}, a);
 }
-inline Vector2 v2_scale(Vector2 a, float t) {
+static inline Vector2 v2_scale(Vector2 a, float t) {
   return (Vector2){a.x * t, a.y * t};
 }
 /**
@@ -111,24 +115,24 @@ inline Vector2 v2_scale(Vector2 a, float t) {
  * @param b The end point
  * @returns The normalized vector pointing from a to b
  * */
-inline Vector2 v2_pointing_to(Vector2 a, Vector2 b) {
+static inline Vector2 v2_pointing_to(Vector2 a, Vector2 b) {
   Vector2 c = v2_sub(b, a);
   return v2_scale(c, 1.0f / v2_magnitude(c));
 }
 
-inline Vector2 v2_negate(Vector2 a) { return (Vector2){-a.x, -a.y}; }
-inline Vector2 v2_interpolate(Vector2 a, Vector2 b, float t) {
+static inline Vector2 v2_negate(Vector2 a) { return (Vector2){-a.x, -a.y}; }
+static inline Vector2 v2_interpolate(Vector2 a, Vector2 b, float t) {
   return (Vector2){interpf(a.x, b.x, t), interpf(a.y, b.y, t)};
 }
-inline float v2_dot(Vector2 a, Vector2 b) { return a.x * b.x + a.y * b.y; }
+static inline float v2_dot(Vector2 a, Vector2 b) {
+  return a.x * b.x + a.y * b.y;
+}
 
-inline Vector2 v2_reflect(Vector2 velocity, Vector2 normal) {
+static inline Vector2 v2_reflect(Vector2 velocity, Vector2 normal) {
   Vector2 n =
       v2_add(v2_scale(normal, -2.0f * v2_dot(velocity, normal)), velocity);
   return n;
 }
-inline Vector2 v2_normalize(Vector2 a) {
+static inline Vector2 v2_normalize(Vector2 a) {
   return v2_scale(a, 1.0f / v2_magnitude(a));
 }
-
-#endif

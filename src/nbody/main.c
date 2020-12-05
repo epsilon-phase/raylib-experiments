@@ -53,17 +53,17 @@ int main(void) {
 
   SetTargetFPS(60); // Set our game to run at 60 frames-per-second
   //--------------------------------------------------------------------------------------
-  const unsigned int body_count_o = 300;
-  unsigned int body_count = body_count_o;
-  mass bodies[body_count];
-  for (unsigned int i = 0; i < body_count; i++) {
+  const unsigned int body_count_o = 1000;
+  unsigned int body_count = 300;
+  mass bodies[body_count_o];
+  for (unsigned int i = 0; i < body_count_o; i++) {
     bodies[i] = init_random_mass();
   }
   bool use_threads = true;
   bool show_help = false;
   bool show_statistics = false;
   int steps_per_tick = 1;
-
+  int threads = omp_get_num_procs();
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
@@ -103,17 +103,14 @@ int main(void) {
       steps_per_tick = steps_per_tick > 1 ? steps_per_tick - 1 : 1;
     }
     if (IsKeyDown(KEY_MINUS)) {
-      MAX_SPAWN_MASS = max(30, MAX_SPAWN_MASS - 1);
+      MAX_SPAWN_MASS = max(1, MAX_SPAWN_MASS - 1);
     }
     if (IsKeyDown(KEY_EQUAL))
       MAX_SPAWN_MASS++;
     if (IsKeyPressed(KEY_T)) {
       use_threads = !use_threads;
       omp_set_num_threads(use_threads ? omp_get_num_procs() : 1);
-      if (!use_threads)
-        omp_set_schedule(omp_sched_static, body_count);
-      else
-        omp_set_schedule(omp_sched_static, body_count / omp_get_num_threads());
+      omp_set_schedule(omp_sched_static, body_count / omp_get_num_threads());
     }
     if (IsKeyPressed(KEY_SLASH) || IsKeyPressed(KEY_H)) {
       show_help = !show_help;
