@@ -17,10 +17,12 @@ add_executable(particle-dabbling)
 add_executable(nbody)
 add_executable(circular_buffer_test)
 add_executable(timing_test)
+add_executable(grid_partition_test)
 target_link_libraries(particle-dabbling raylib utility)
 target_link_libraries(nbody raylib OpenMP::OpenMP_C utility Threads::Threads)
 target_link_libraries(utility raylib)
 target_link_libraries(timing_test utility)
+target_link_libraries(grid_partition_test utility)
 #add_subdirectory(src/particle)
 
 

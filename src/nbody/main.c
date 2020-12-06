@@ -362,7 +362,7 @@ void reset_all_mass(mass *m, size_t count) {
     m[i] = init_random_mass();
 }
 void print_spec(struct timespec ts) {
-  printf("%f seconds", ts.tv_sec + ts.tv_nsec / 100000000.0f);
+  printf("%f seconds", ts.tv_sec + ts.tv_nsec / 1.0e9f);
 }
 void *thread_loop(void *discard) {
   mass *copy = malloc(sizeof(mass) * thread_arguments.max);

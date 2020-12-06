@@ -1,18 +1,23 @@
 #pragma once
-#include <stddef.h>
 #include <raylib.h>
-typedef struct{
-  int column,row;
-} grid_location;
-
-typedef struct{
-  size_t columns,rows;
+#include <stdbool.h>
+#include <stddef.h>
+struct grid_cell;
+struct grid_iterator_inner;
+typedef struct {
+  size_t columns, rows;
+  size_t max_expected;
+  struct grid_cell *cells;
   float span;
-  int max_expected;
-  struct {
-    void** contents;
-    size_t capacity, size;
-  } *cells;
-}grid_container;
-grid_location get_in_grid(const grid_container*,Vector2);
-void remove_from_grid(grid_container* grid, Vector2 location, void* data);
+} grid_container;
+struct grid_iterator {
+  struct grid_iterator_inner *inner;
+};
+void init_grid_container(grid_container *, int columns, int rows, float span,
+                         size_t expected_elements);
+bool remove_from_grid(grid_container *grid, Vector2 location, void *data);
+bool grid_cell_contains(const grid_container *grid, int row, int column,
+                        void *data);
+size_t grid_cell_size(const grid_container *grid, int column, int row);
+void insert_into_grid(grid_container *grid, Vector2 location, void *data);
+void free_grid_container(grid_container *grid);
