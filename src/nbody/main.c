@@ -36,6 +36,7 @@ static struct {
   int count;
   int max;
   bool reset;
+  bool change_threads;
 } thread_arguments;
 
 void draw_mass(const mass *m);
@@ -78,6 +79,7 @@ int main(void) {
   thread_arguments.count = body_count;
   thread_arguments.max = body_count_o;
   thread_arguments.original = bodies;
+  thread_arguments.change_threads = false;
   pthread_mutex_init(&copy_mutex, NULL);
   pthread_t thread;
   pthread_create(&thread, NULL, &thread_loop, NULL);
@@ -127,8 +129,7 @@ int main(void) {
       MAX_SPAWN_MASS++;
     if (IsKeyPressed(KEY_T)) {
       use_threads = !use_threads;
-      omp_set_num_threads(use_threads ? omp_get_num_procs() : 1);
-      omp_set_schedule(omp_sched_static, body_count / omp_get_num_threads());
+      thread_arguments.change_threads = true;
     }
     if (IsKeyPressed(KEY_SLASH) || IsKeyPressed(KEY_H)) {
       show_help = !show_help;
@@ -360,11 +361,19 @@ void *thread_loop(void *discard) {
   mass *copy = malloc(sizeof(mass) * thread_arguments.max);
   memcpy(copy, thread_arguments.original, sizeof(mass) * thread_arguments.max);
   struct timing_variance t;
+  bool use_threads = true;
   init_timing_variance(&t);
   while (true) {
     if (thread_arguments.reset) {
       reset_all_mass(copy, thread_arguments.count);
       thread_arguments.reset = false;
+    }
+    if (thread_arguments.change_threads) {
+      use_threads = !use_threads;
+      omp_set_num_threads(use_threads ? omp_get_num_procs() : 1);
+      omp_set_schedule(omp_sched_static,
+                       thread_arguments.count / omp_get_num_threads());
+      thread_arguments.change_threads = false;
     }
     start_timing(&t);
     step_mass(copy, thread_arguments.count, 1);
