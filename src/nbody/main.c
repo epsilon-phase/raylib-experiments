@@ -174,10 +174,10 @@ int main(void) {
       pthread_mutex_lock(&copy_mutex);
       const mass *m = find_biggest(
           bodies, (const void *(*)(const void *, const void *)) & bigger_mass,
-          sizeof(mass), body_count);
+          body_count, sizeof(mass));
       const char *statistics =
           TextFormat("Largest Mass: %.1f\n"
-                     "Largest Radius: %.1f\n"
+                     "Largest Radius: %.2f\n"
                      "collision count:%i\n"
                      "simulated time: %.2f seconds\n"
                      "Wall time: %.2f seconds\n"
@@ -301,7 +301,14 @@ float mass_speed(const mass *m) {
   return distance((Vector2){0, 0}, m->velocity);
 }
 float mass_radius(const mass *m) {
-  return logf(m->mass) / logf(3.0) * SIZE_SCALING_FACTOR;
+  float result = logf(m->mass) / logf(3.0) * SIZE_SCALING_FACTOR;
+  // So, down facing parabola is something like
+  // -x^2+b*x+c
+  // (-x-1)*(x-40)
+  // -x^2 + 39x + 40
+
+  // return max((-powf(result, 2.0f) + 39 * result + 40) / 10.0f, 10);
+  return result > 40 ? 40 - logf(m->mass) / logf(5.0f) : result;
 }
 
 void absorb_mass(mass *a, mass *b) {
