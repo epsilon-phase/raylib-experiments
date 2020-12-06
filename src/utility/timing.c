@@ -1,4 +1,5 @@
 #include "./timing.h"
+
 static struct timespec min(struct timespec a, struct timespec b) {
   if (a.tv_sec > b.tv_sec)
     return b;
@@ -21,8 +22,8 @@ static struct timespec avg(struct timespec a, struct timespec b, int count) {
   long long tv_nsec = a.tv_nsec * count + b.tv_nsec;
   long long tv_sec = a.tv_sec * count + b.tv_sec;
   struct timespec result;
-  result.tv_nsec = tv_nsec / count;
-  result.tv_sec = tv_sec / count;
+  result.tv_nsec = tv_nsec / (count + 1);
+  result.tv_sec = tv_sec / (count + 1);
   return result;
 }
 void start_timing(struct timing_variance *tv) {
@@ -44,4 +45,11 @@ void init_timing_variance(struct timing_variance *tv) {
   tv->min = (struct timespec){10000000, 10000000};
   tv->avg = (struct timespec){0, 0};
   tv->samples = 1;
+}
+static double seconds(struct timespec t) {
+  return t.tv_sec + t.tv_nsec / (1.0e9);
+}
+void print_timing(FILE *f, const struct timing_variance *tv) {
+  fprintf(f, "Min: %.3g, Max: %.3g, Average: %.3g, Samples: %i\n",
+          seconds(tv->min), seconds(tv->max), seconds(tv->avg), tv->samples);
 }
