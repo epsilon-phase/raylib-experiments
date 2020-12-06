@@ -3,6 +3,8 @@ project(rayfuck VERSION 0.0.0
   DESCRIPTION "Some fucking around"
   LANGUAGES C)
 find_package(OpenMP)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 add_subdirectory(third-party/raylib)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/third-party/sanitizers-cmake/cmake" ${CMAKE_MODULE_PATH})
 find_package(Sanitizers)
@@ -15,7 +17,7 @@ add_executable(particle-dabbling)
 add_executable(nbody)
 add_executable(circular_buffer_test)
 target_link_libraries(particle-dabbling raylib utility)
-target_link_libraries(nbody raylib OpenMP::OpenMP_C utility)
+target_link_libraries(nbody raylib OpenMP::OpenMP_C utility Threads::Threads)
 target_link_libraries(utility raylib)
 #add_subdirectory(src/particle)
 

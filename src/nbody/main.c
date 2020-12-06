@@ -1,11 +1,13 @@
 #include "pointer_utils.h"
 #include "raylib.h"
+#include "timing.h"
 #include "utility_math.h"
-
 #include <math.h>
 #include <omp.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #define min(X, Y) X > Y ? Y : X
 #define max(X, Y) X > Y ? X : Y
 // An excellent constant, simply,,, the best
@@ -23,10 +25,18 @@ static const Vector2 zero_v = (Vector2){0.0f, 0.0f};
 static unsigned int collision_count = 0;
 static unsigned int step_count = 0;
 static float wall_time = 0.0f;
+static pthread_mutex_t copy_mutex;
 typedef struct {
   Vector2 position, velocity, accelleration;
   float mass;
 } mass;
+
+static struct {
+  mass *original;
+  int count;
+  int max;
+  bool reset;
+} thread_arguments;
 
 void draw_mass(const mass *m);
 void step_mass(mass *, unsigned int n, unsigned int steps);
@@ -38,11 +48,12 @@ void absorb_mass(mass *a, mass *b);
 void mass_collision(mass *a, mass *b);
 void reset_masses(mass *array, int count);
 inline Vector2 body_body_acceleration(const mass *, const mass *);
-int sortalgo(const void *A, const void *B) {
+int compare_mass(const void *A, const void *B) {
   const mass *a = A, *b = B;
   return a->mass > b->mass ? -1 : (b->mass == a->mass ? 0 : 1);
 }
 const mass *bigger_mass(const mass *a, const mass *b);
+void *thread_loop(void *);
 int main(void) {
   // Initialization
   //--------------------------------------------------------------------------------------
@@ -64,6 +75,13 @@ int main(void) {
   bool show_statistics = false;
   int steps_per_tick = 1;
   int threads = omp_get_num_procs();
+  thread_arguments.count = body_count;
+  thread_arguments.max = body_count_o;
+  thread_arguments.original = bodies;
+  pthread_mutex_init(&copy_mutex, NULL);
+  pthread_t thread;
+  pthread_create(&thread, NULL, &thread_loop, NULL);
+
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
@@ -75,6 +93,7 @@ int main(void) {
     screen_bounds = (Vector2){GetScreenWidth(), GetScreenHeight()};
     if (IsKeyPressed(KEY_R)) {
       reset_masses(bodies, body_count);
+      thread_arguments.reset = true;
       collision_count = 0;
       step_count = 0;
       wall_time = 0;
@@ -84,12 +103,11 @@ int main(void) {
     }
     if (IsKeyDown(KEY_RIGHT)) {
       body_count = min(body_count_o, body_count + 1);
-      // VELOCITY_DECAY *= 0.999;
+      thread_arguments.count = body_count;
     }
     if (IsKeyDown(KEY_LEFT)) {
       body_count = max(1, body_count - 1);
-
-      qsort(bodies, body_count, sizeof(mass), sortalgo);
+      thread_arguments.count = body_count;
       // VELOCITY_DECAY = min(VELOCITY_DECAY * 1.1, 1.0);
     }
     if (IsKeyPressed(KEY_S)) {
@@ -115,7 +133,7 @@ int main(void) {
     if (IsKeyPressed(KEY_SLASH) || IsKeyPressed(KEY_H)) {
       show_help = !show_help;
     }
-    step_mass(bodies, body_count, steps_per_tick);
+    // step_mass(bodies, body_count, steps_per_tick);
 
     // Draw
     //----------------------------------------------------------------------------------
@@ -123,9 +141,10 @@ int main(void) {
     BeginDrawing();
 
     ClearBackground(RAYWHITE);
-
+    pthread_mutex_lock(&copy_mutex);
     for (unsigned int i = 0; i < body_count; i++)
       draw_mass(&bodies[i]);
+    pthread_mutex_unlock(&copy_mutex);
     const char *status =
         TextFormat("Body Count: %i Steps per Frame: %i FPS: %0.2f, Threads: "
                    "%s, max mass spawn: %i, "
@@ -151,6 +170,7 @@ int main(void) {
       DrawText(help, 100, 120, 16, BLACK);
     }
     if (show_statistics) {
+      pthread_mutex_lock(&copy_mutex);
       const mass *m = find_biggest(
           bodies, (const void *(*)(const void *, const void *)) & bigger_mass,
           sizeof(mass), body_count);
@@ -164,6 +184,7 @@ int main(void) {
                      m->mass, mass_radius(m), collision_count,
                      last_frame_time * step_count, wall_time,
                      (last_frame_time * step_count) / wall_time);
+      pthread_mutex_unlock(&copy_mutex);
       Vector2 size = MeasureTextEx(GetFontDefault(), statistics, 16, 1.0);
       DrawRectangle(68, 68, size.x, size.y, GRAY);
       DrawText(statistics, 68, 68, 16, BLACK);
@@ -236,7 +257,8 @@ void step_mass(mass *m, unsigned int count, unsigned int steps) {
       }
     }
 
-    // Then the positions
+// Then the positions
+#pragma omp parallel for schedule(static)
     for (i = 0; i < count; i++) {
       m[i].position =
           v2_add(m[i].position, v2_scale(m[i].velocity, last_frame_time));
@@ -254,8 +276,8 @@ mass init_random_mass() {
   mass m;
 
   m.mass = random_float_interval(1.0, MAX_SPAWN_MASS);
-  m.position =
-      (Vector2){rand() % (int)screen_bounds.x, rand() % (int)screen_bounds.y};
+  m.position = (Vector2){random_float_interval(0.0f, screen_bounds.x),
+                         random_float_interval(0.0f, screen_bounds.y)};
   m.velocity = (Vector2){
       random_float_interval(-MAX_INITIAL_VELOCITY, MAX_INITIAL_VELOCITY),
       random_float_interval(-MAX_INITIAL_VELOCITY, MAX_INITIAL_VELOCITY)};
@@ -319,9 +341,6 @@ Vector2 body_body_acceleration(const mass *a, const mass *b) {
   result = v2_scale(
       result, last_frame_time * GRAVITATION_CONSTANT * (a->mass * b->mass) /
                   (powf(distance(a->position, b->position), 2.0f)));
-  // v2_scale(v2_sub(b->position, a->position),
-  // last_frame_time * GRAVITATION_CONSTANT * (a->mass * b->mass) /
-  // powf(distance(a->position, b->position), 2.0f));
   result = v2_scale(result, 1.0f / a->mass);
   return result;
 }
@@ -329,4 +348,41 @@ const mass *bigger_mass(const mass *a, const mass *b) {
   if (a->mass < b->mass)
     return b;
   return a;
+}
+void reset_all_mass(mass *m, size_t count) {
+  for (size_t i = 0; i < count; i++)
+    m[i] = init_random_mass();
+}
+void print_spec(struct timespec ts) {
+  printf("%f seconds", ts.tv_sec + ts.tv_nsec / 100000000.0f);
+}
+void *thread_loop(void *discard) {
+  mass *copy = malloc(sizeof(mass) * thread_arguments.max);
+  memcpy(copy, thread_arguments.original, sizeof(mass) * thread_arguments.max);
+  struct timing_variance t;
+  init_timing_variance(&t);
+  while (true) {
+    if (thread_arguments.reset) {
+      reset_all_mass(copy, thread_arguments.count);
+      thread_arguments.reset = false;
+    }
+    start_timing(&t);
+    step_mass(copy, thread_arguments.count, 1);
+    pthread_mutex_lock(&copy_mutex);
+    memcpy(thread_arguments.original, copy,
+           thread_arguments.max * sizeof(mass));
+    pthread_mutex_unlock(&copy_mutex);
+    end_timing(&t);
+    if (!(step_count % 100)) {
+      printf("Min: ");
+      print_spec(t.min);
+      printf(" Max: ");
+      print_spec(t.max);
+      printf(" Average: ");
+      print_spec(t.avg);
+      printf(" %i samples", t.samples);
+      printf("\n");
+    }
+  }
+  return NULL;
 }
