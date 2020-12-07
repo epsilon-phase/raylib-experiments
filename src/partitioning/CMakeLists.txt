@@ -1,0 +1,2 @@
+TARGET_SOURCES(partitioning PUBLIC grid_partitioning.c)
+TARGET_SOURCES(grid_partition_test PUBLIC grid_partition_test.c)
