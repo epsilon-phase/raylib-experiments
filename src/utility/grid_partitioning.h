@@ -1,4 +1,8 @@
 #pragma once
+/**
+ * Provide a generic, non-owning grid partitioned container
+ *
+ **/
 #include <raylib.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -11,8 +15,13 @@ typedef struct {
   float span;
 } grid_container;
 struct grid_iterator {
+  // Opaque pointer (spooky noises)
   struct grid_iterator_inner *inner;
 };
+void *grid_iterator_next(struct grid_iterator);
+void free_grid_iterator(struct grid_iterator);
+void get_whole_ass_grid_iterator(struct grid_iterator *,
+                                 const grid_container *);
 void init_grid_container(grid_container *, int columns, int rows, float span,
                          size_t expected_elements);
 bool remove_from_grid(grid_container *grid, Vector2 location, void *data);

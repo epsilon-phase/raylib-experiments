@@ -11,3 +11,4 @@ void start_timing(struct timing_variance *tv);
 void end_timing(struct timing_variance *tv);
 void init_timing_variance(struct timing_variance *tv);
 void print_timing(FILE *f, const struct timing_variance *tv);
+int timespec_cmp(struct timespec, struct timespec);

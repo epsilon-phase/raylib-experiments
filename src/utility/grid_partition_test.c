@@ -21,6 +21,13 @@ int main() {
   printf("(0,1): %li\n", grid_cell_size(&gc, 0, 1));
   assert(grid_cell_size(&gc, 0, 0) == 3);
   assert(grid_cell_size(&gc, 1, 1) == 3);
+  struct grid_iterator iter;
+  get_whole_ass_grid_iterator(&iter, &gc);
+  for (int *i = grid_iterator_next(iter); i != NULL;
+       i = grid_iterator_next(iter)) {
+    printf("%i\n", *i);
+  }
+  free_grid_iterator(iter);
   remove_from_grid(&gc, position[0], &data[0]);
   assert(grid_cell_size(&gc, 0, 0) == 2);
 }

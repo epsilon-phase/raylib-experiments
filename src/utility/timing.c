@@ -1,5 +1,16 @@
 #include "./timing.h"
 
+int timespec_cmp(struct timespec a, struct timespec b) {
+  if (a.tv_sec > b.tv_sec)
+    return 1;
+  if (a.tv_sec < b.tv_sec)
+    return -1;
+  if (a.tv_nsec > b.tv_nsec)
+    return 1;
+  else if (a.tv_nsec < b.tv_nsec)
+    return -1;
+  return 0;
+}
 static struct timespec min(struct timespec a, struct timespec b) {
   if (a.tv_sec > b.tv_sec)
     return b;
@@ -44,7 +55,7 @@ void init_timing_variance(struct timing_variance *tv) {
   tv->max = (struct timespec){0, 0};
   tv->min = (struct timespec){10000000, 10000000};
   tv->avg = (struct timespec){0, 0};
-  tv->samples = 1;
+  tv->samples = 0;
 }
 static double seconds(struct timespec t) {
   return t.tv_sec + t.tv_nsec / (1.0e9);
