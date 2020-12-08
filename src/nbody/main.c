@@ -370,6 +370,8 @@ void print_spec(struct timespec ts) {
 }
 /**
  * Get the target loop speed given a number of times per second it should run
+ * @param n The multiplier
+ * @returns A timespec indicating the duration to sleep for
  **/
 static struct timespec get_multiplier(int n) {
   struct timespec c;
