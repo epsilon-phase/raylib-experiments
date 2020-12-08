@@ -33,8 +33,10 @@ typedef struct {
 
 static struct {
   mass *original;
+  mass *copy;
   int count;
   int max;
+  int steps;
   bool reset;
   bool change_threads;
 } thread_arguments;
@@ -83,7 +85,6 @@ int main(void) {
   pthread_mutex_init(&copy_mutex, NULL);
   pthread_t thread;
   pthread_create(&thread, NULL, &thread_loop, NULL);
-
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
@@ -103,6 +104,10 @@ int main(void) {
     if (IsKeyDown(KEY_UP)) {
       steps_per_tick++;
     }
+    if (IsKeyDown(KEY_DOWN)) {
+      steps_per_tick = steps_per_tick > 1 ? steps_per_tick - 1 : 1;
+    }
+    thread_arguments.steps = steps_per_tick;
     if (IsKeyDown(KEY_RIGHT)) {
       body_count = min(body_count_o, body_count + 1);
       thread_arguments.count = body_count;
@@ -119,9 +124,7 @@ int main(void) {
       paint_acceleration = !paint_acceleration;
       printf("PAINTING ACCELERATION %c\n", paint_acceleration ? 'Y' : 'N');
     }
-    if (IsKeyDown(KEY_DOWN)) {
-      steps_per_tick = steps_per_tick > 1 ? steps_per_tick - 1 : 1;
-    }
+
     if (IsKeyDown(KEY_MINUS)) {
       MAX_SPAWN_MASS = max(1, MAX_SPAWN_MASS - 1);
     }
@@ -143,6 +146,7 @@ int main(void) {
 
     ClearBackground(RAYWHITE);
     pthread_mutex_lock(&copy_mutex);
+
     for (unsigned int i = 0; i < body_count; i++)
       draw_mass(&bodies[i]);
     pthread_mutex_unlock(&copy_mutex);
@@ -364,6 +368,15 @@ void reset_all_mass(mass *m, size_t count) {
 void print_spec(struct timespec ts) {
   printf("%f seconds", ts.tv_sec + ts.tv_nsec / 1.0e9f);
 }
+/**
+ * Get the target loop speed given a number of times per second it should run
+ **/
+static struct timespec get_multiplier(int n) {
+  struct timespec c;
+  c.tv_sec = 0;
+  c.tv_nsec = ((last_frame_time / n) * 1e9);
+  return c;
+}
 void *thread_loop(void *discard) {
   mass *copy = malloc(sizeof(mass) * thread_arguments.max);
   memcpy(copy, thread_arguments.original, sizeof(mass) * thread_arguments.max);
@@ -371,6 +384,7 @@ void *thread_loop(void *discard) {
   bool use_threads = true;
   init_timing_variance(&t);
   while (true) {
+
     if (thread_arguments.reset) {
       reset_all_mass(copy, thread_arguments.count);
       thread_arguments.reset = false;
@@ -389,16 +403,10 @@ void *thread_loop(void *discard) {
            thread_arguments.max * sizeof(mass));
     pthread_mutex_unlock(&copy_mutex);
     end_timing(&t);
-    if (!(step_count % 100)) {
-      printf("Min: ");
-      print_spec(t.min);
-      printf(" Max: ");
-      print_spec(t.max);
-      printf(" Average: ");
-      print_spec(t.avg);
-      printf(" %i samples", t.samples);
-      printf("\n");
-    }
+    print_timing(stdout, &t);
+    struct timespec c = get_multiplier(thread_arguments.steps);
+    printf("Loop speed goal %f\n", c.tv_sec + c.tv_nsec / 1.0e9);
+    sleep_timing(&t, c);
   }
   return NULL;
 }

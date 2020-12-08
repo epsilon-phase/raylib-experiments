@@ -37,6 +37,14 @@ static struct timespec avg(struct timespec a, struct timespec b, int count) {
   result.tv_sec = tv_sec / (count + 1);
   return result;
 }
+static struct timespec timespec_diff(struct timespec a, struct timespec b) {
+  struct timespec r;
+  r.tv_nsec = a.tv_nsec - b.tv_nsec;
+  r.tv_sec = a.tv_sec - b.tv_sec;
+  r.tv_nsec = r.tv_nsec < 0 ? 0 : r.tv_nsec;
+  r.tv_sec = r.tv_sec < 0 ? 0 : r.tv_sec;
+  return r;
+}
 void start_timing(struct timing_variance *tv) {
   clock_gettime(CLOCK_MONOTONIC_RAW, &tv->start);
 }
@@ -63,4 +71,9 @@ static double seconds(struct timespec t) {
 void print_timing(FILE *f, const struct timing_variance *tv) {
   fprintf(f, "Min: %.3g, Max: %.3g, Average: %.3g, Samples: %i\n",
           seconds(tv->min), seconds(tv->max), seconds(tv->avg), tv->samples);
+}
+void sleep_timing(const struct timing_variance *tv, struct timespec ts) {
+  struct timespec r = timespec_diff(ts, timespec_diff(tv->end, tv->start));
+  printf("Sleeping for %f seconds\n", ts.tv_sec + ts.tv_nsec / 1.0e9);
+  nanosleep(&r, NULL);
 }
