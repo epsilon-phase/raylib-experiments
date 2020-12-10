@@ -1,0 +1,2 @@
+TARGET_SOURCES(crystal PUBLIC main.c)
+TARGET_INCLUDE_DIRECTORIES(crystal PRIVATE "../utility")
