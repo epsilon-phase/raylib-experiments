@@ -11,7 +11,19 @@ struct timing_variance {
 };
 void start_timing(struct timing_variance *tv);
 void end_timing(struct timing_variance *tv);
+/**
+ * Set up a given timing variance for usage, could be zeroed out normally, but
+ *it's easier to just give it an init function
+ *
+ * @param A pointer to the timing variance structure that you want to
+ *(re)-initialize
+ **/
 void init_timing_variance(struct timing_variance *tv);
+/**
+ * Print the timing_variance information onto the specified file stream
+ * @param f The FILE pointer
+ * @param tv the pointer to the timing_variance structure
+ **/
 void print_timing(FILE *f, const struct timing_variance *tv);
 /**
  * Regulate a loop or recurring computation by the time that it takes to

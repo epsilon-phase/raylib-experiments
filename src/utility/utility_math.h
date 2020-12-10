@@ -54,9 +54,16 @@ static inline int rand_interval(int a, int b) { return a + rand() % (b - a); }
 static inline long random_interval(long a, long b) {
   return a + random() % (b - a);
 }
+
 static inline float random_float_interval(float a, float b) {
   const long random_max = RANDOM_MAX;
   return (b - a) * (random() / ((float)random_max)) + a;
+}
+static inline Vector2 random_interval_v2(Vector2 a, Vector2 b) {
+  Vector2 r;
+  r.x = random_float_interval(a.x, b.x);
+  r.y = random_float_interval(a.y, b.y);
+  return r;
 }
 static inline float wrap_aroundf(float start, float end, float number) {
   if (number < start)
@@ -135,4 +142,34 @@ static inline Vector2 v2_reflect(Vector2 velocity, Vector2 normal) {
 }
 static inline Vector2 v2_normalize(Vector2 a) {
   return v2_scale(a, 1.0f / v2_magnitude(a));
+}
+// Forgive us for the comments here, we haven't worked on this kinda equation in
+// long enough that we prefer to do some scratch work to make sure the math is
+// right
+
+static inline float v2_line_slope(Vector2 a, Vector2 b) {
+  /**
+   * y-y0 = m(x-x0)
+   *      / (x-x0)
+   * (y-y0)/(x-x0)=m
+   **/
+  return (b.y - a.y) / (b.x - a.x);
+}
+static inline Vector2 v2_normal_line(Vector2 a, Vector2 b) {
+  /**
+   * y=m*x+b
+   *  - b
+   * y-b=m*x
+   *    /x
+   * (y-b)/x=m
+   **/
+  Vector2 result;
+  float slope = v2_line_slope(a, b);
+  /**
+   * y-f(x0)=-1/(f'(x0))*(x-x0)
+   **/
+  result.x = 1;
+  result.y = -1 / slope;
+
+  return v2_normalize(result);
 }

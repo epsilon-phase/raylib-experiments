@@ -19,7 +19,7 @@ const float SIZE_SCALING_FACTOR = 5.0f;
 const float MAX_INITIAL_VELOCITY = 2;
 const float MAX_MASS = 1e18f;
 static int paint_acceleration = 1;
-static float last_frame_time = 1.0f / 60.0f;
+static float simulation_step_size = 1.0f / 60.0f;
 static Vector2 screen_bounds = (Vector2){800, 450};
 static const Vector2 zero_v = (Vector2){0.0f, 0.0f};
 static unsigned int collision_count = 0;
@@ -47,15 +47,43 @@ mass init_random_mass();
 float mass_speed(const mass *m);
 Vector2 mass_reflect(mass *a, mass *b);
 float mass_radius(const mass *m);
+/**
+ * Sets one mass to the combination of the two.
+ * @param a The first mass, the one that gets combined with the second
+ * @param b The second mass, which gets absorbed and then reinitialized
+ **/
 void absorb_mass(mass *a, mass *b);
 void mass_collision(mass *a, mass *b);
+/**
+ * Reset an array of masses to randomly chosen values
+ * @params array The pointer to the first mass in the array
+ * @param count The number of masses to (re)-initialize
+ * */
 void reset_masses(mass *array, int count);
 inline Vector2 body_body_acceleration(const mass *, const mass *);
+/**
+ *Comparison function in the vein of strcmp.
+ * @param A The first mass
+ * @param B The second mass
+ * @returns -1 if A is bigger than B, 1 if B is bigger than A, 0 for equal
+ **/
 int compare_mass(const void *A, const void *B) {
   const mass *a = A, *b = B;
   return a->mass > b->mass ? -1 : (b->mass == a->mass ? 0 : 1);
 }
+/**
+ * Returns the larger(heavier) of the two masses passed in
+ * @param a One of the two masses
+ * @param b The other of the two masses
+ * @returns the larger of the two masses or a
+ **/
 const mass *bigger_mass(const mass *a, const mass *b);
+/**
+ * Handles the physics shit for the nbody calculation.
+ * @param v Literally used for nothing at all, just required for pthread to
+ *accept it
+ * @returns Nothing, same shit
+ **/
 void *thread_loop(void *);
 int main(void) {
   // Initialization
@@ -187,8 +215,8 @@ int main(void) {
                      "Wall time: %.2f seconds\n"
                      "Dilation factor: %.2f",
                      m->mass, mass_radius(m), collision_count,
-                     last_frame_time * step_count, wall_time,
-                     (last_frame_time * step_count) / wall_time);
+                     simulation_step_size * step_count, wall_time,
+                     (simulation_step_size * step_count) / wall_time);
       pthread_mutex_unlock(&copy_mutex);
       Vector2 size = MeasureTextEx(GetFontDefault(), statistics, 16, 1.0);
       DrawRectangle(68, 68, size.x, size.y, GRAY);
@@ -215,7 +243,7 @@ void draw_mass(const mass *m) {
   // Draw the inner bit
   DrawCircle(m->position.x, m->position.y, mass_radius(m), BLACK);
   Vector2 end = v2_add(
-      v2_scale(m->accelleration, 20.0 * mass_radius(m) / last_frame_time),
+      v2_scale(m->accelleration, 20.0 * mass_radius(m) / simulation_step_size),
       m->position);
   Vector2 vend = m->velocity;
   if (v2_magnitude(vend) > mass_radius(m)) {
@@ -266,7 +294,7 @@ void step_mass(mass *m, unsigned int count, unsigned int steps) {
 #pragma omp parallel for schedule(static)
     for (i = 0; i < count; i++) {
       m[i].position =
-          v2_add(m[i].position, v2_scale(m[i].velocity, last_frame_time));
+          v2_add(m[i].position, v2_scale(m[i].velocity, simulation_step_size));
       m[i].position = wrap_around(zero_v, screen_bounds, m[i].position);
     }
     for (mass *a = m; a < m + count; a++) {
@@ -350,9 +378,10 @@ void reset_masses(mass *array, int count) {
 Vector2 body_body_acceleration(const mass *a, const mass *b) {
   Vector2 result;
   result = v2_pointing_to(a->position, b->position);
-  result = v2_scale(
-      result, last_frame_time * GRAVITATION_CONSTANT * (a->mass * b->mass) /
-                  (powf(distance(a->position, b->position), 2.0f)));
+  result =
+      v2_scale(result, simulation_step_size * GRAVITATION_CONSTANT *
+                           (a->mass * b->mass) /
+                           (powf(distance(a->position, b->position), 2.0f)));
   result = v2_scale(result, 1.0f / a->mass);
   return result;
 }
@@ -376,7 +405,7 @@ void print_spec(struct timespec ts) {
 static struct timespec get_multiplier(int n) {
   struct timespec c;
   c.tv_sec = 0;
-  c.tv_nsec = ((last_frame_time / n) * 1e9);
+  c.tv_nsec = ((simulation_step_size / n) * 1e9);
   return c;
 }
 void *thread_loop(void *discard) {
