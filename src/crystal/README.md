@@ -10,7 +10,8 @@ versions.
 
 Here's what exists so far:
 
-* R -- Reset the crystal
+* A - Toggle drawing the freely moving particles versus just the fixed ones
+* R - Reset the crystal
 * T - Toggle drawing the text over the crystal
-* S - Suspend drawing of the particles and crystals.
+* W - Change walking strategy(More on this later)
 
