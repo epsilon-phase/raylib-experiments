@@ -19,6 +19,7 @@ add_executable(nbody)
 add_executable(circular_buffer_test)
 add_executable(timing_test)
 add_executable(grid_partition_test)
+add_executable(rain)
 #Not ready yet
 #add_executable(flame)
 add_executable(crystal)
@@ -29,6 +30,7 @@ target_link_libraries(timing_test utility)
 target_link_libraries(grid_partition_test partitioning raylib)
 # target_link_libraries(flame utility raylib)
 target_link_libraries(crystal utility raylib OpenMP::OpenMP_C)
+target_link_libraries(rain utility raylib)
 #add_subdirectory(src/particle)
 
 

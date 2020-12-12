@@ -173,3 +173,12 @@ static inline Vector2 v2_normal_line(Vector2 a, Vector2 b) {
 
   return v2_normalize(result);
 }
+
+static inline float degtorad(float deg) { return deg * PI / 180.0f; }
+static inline Vector2 v2_get_angled(float angle, float magnitude) {
+  return v2_scale((Vector2){cosf(angle), sin(angle)}, magnitude);
+}
+static inline Vector2 v2_rotate(Vector2 a, float angle) {
+  return (Vector2){cosf(angle) * a.x - a.y * sinf(angle),
+                   a.x * sinf(angle) + a.y * cosf(angle)};
+}
