@@ -16,6 +16,7 @@ static enum {
   CENTERWISE_JITTER,
   CENTERWISE_JITTER_2,
   CENTERWISE_JITTER_3,
+  CENTERWISE_JITTER_4,
   WALKING_GUARD
 } walking = CENTERWISE_JITTER;
 static inline void cycle_walking_strategy() {
@@ -32,6 +33,8 @@ static inline const char *get_walking_name() {
     return "Center nudges(x2)";
   case CENTERWISE_JITTER_3:
     return "Center nudges(x4)";
+  case CENTERWISE_JITTER_4:
+    return "Center nudges(x8)";
   default:
     return "FAILURE";
   }
@@ -65,7 +68,7 @@ static const int color_c = sizeof(colors) / sizeof(Color);
 static const int save_frame_min_change = 5;
 static bool do_diagonal_movement = false;
 static const int max_steps_before_draw = 3;
-static bool save_frames = true;
+static bool save_frames = false;
 
 // static RectI stable_bounding_box;
 inline Particle init_particle();
@@ -80,9 +83,11 @@ inline const char *format_status() {
 
   return TextFormat("Walking: %s(diagonal: %c)\n"
                     "Neighbor check: %s\n"
-                    "FPS: %.1f",
+                    "FPS: %.1f\n"
+                    "Saving frames? %c",
                     get_walking_name(), do_diagonal_movement ? 'Y' : 'N',
-                    get_neighbor_check_name(), 1.0f / GetFrameTime());
+                    get_neighbor_check_name(), 1.0f / GetFrameTime(),
+                    save_frames ? 'Y' : 'N');
 }
 int compare_particle(const Particle *restrict a, const Particle *restrict b) {
   return b->stable - a->stable;
@@ -246,7 +251,7 @@ static inline void random_walk(Particle *restrict p, bool diagonals) {
 }
 /// Inverse Chance of getting nudged towards the center, either on x or y
 /// plane
-static const int center_nudge_chance[] = {60, 30, 15};
+static const int center_nudge_chance[] = {60, 30, 15, 7};
 static inline void centerwise_jitter_walk(Particle *restrict p,
                                           int centerwise_nudge) {
 
@@ -274,6 +279,7 @@ inline void walk_particle(Particle *restrict p) {
   case CENTERWISE_JITTER:
   case CENTERWISE_JITTER_2:
   case CENTERWISE_JITTER_3:
+  case CENTERWISE_JITTER_4:
     centerwise_jitter_walk(p, center_nudge_chance[walking - CENTERWISE_JITTER]);
     break;
   case WALKING_GUARD:

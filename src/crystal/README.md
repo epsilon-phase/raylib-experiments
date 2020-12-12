@@ -16,6 +16,8 @@ Here's what exists so far:
 * W - Change walking strategy(More on this later)
 * N - Change the neighbor check
 * D - Toggle diagonal motion
+* F - Toggle saving frames (Good for making animations of the crystal growing)
+* O - Save a screenshot
 
 ### Walking Strategy
 
