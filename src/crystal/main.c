@@ -71,15 +71,15 @@ static const int max_steps_before_draw = 3;
 static bool save_frames = false;
 
 // static RectI stable_bounding_box;
-inline Particle init_particle();
-inline void init_particles(Particle *restrict p, int count);
+static inline Particle init_particle();
+static inline void init_particles(Particle *restrict p, int count);
 bool particle_step(Particle *restrict p, const Particle *restrict others,
                    int count);
-inline int particle_is_adjacent(const Particle *restrict a,
-                                const Particle *restrict b);
-inline void walk_particle(Particle *restrict a);
-inline Color get_particle_color(const Particle *restrict p);
-inline const char *format_status() {
+static inline int particle_is_adjacent(const Particle *restrict a,
+                                       const Particle *restrict b);
+static inline void walk_particle(Particle *restrict a);
+static inline Color get_particle_color(const Particle *restrict p);
+static inline const char *format_status() {
 
   return TextFormat("Walking: %s(diagonal: %c)\n"
                     "Neighbor check: %s\n"
@@ -182,7 +182,7 @@ int main(void) {
   CloseWindow();
   return 0;
 }
-inline Particle init_particle() {
+static inline Particle init_particle() {
   Particle p;
   p.x = random_interval(0, GetScreenWidth());
   p.y = random_interval(0, GetScreenHeight());
@@ -192,12 +192,12 @@ inline Particle init_particle() {
   p.cycle = 0;
   return p;
 }
-inline void init_particles(Particle *restrict p, int count) {
+void init_particles(Particle *restrict p, int count) {
   for (int i = 0; i < count; i++)
     p[i] = init_particle();
 }
-inline int particle_is_adjacent(const Particle *restrict a,
-                                const Particle *restrict b) {
+static inline int particle_is_adjacent(const Particle *restrict a,
+                                       const Particle *restrict b) {
   switch (neighbor_check) {
   case FOUR_NEIGHBORHOOD:
     return 1 == (abs(a->x - b->x) + abs(a->y - b->y));
@@ -271,7 +271,7 @@ static inline void centerwise_jitter_walk(Particle *restrict p,
   else
     random_walk(p, do_diagonal_movement);
 }
-inline void walk_particle(Particle *restrict p) {
+static inline void walk_particle(Particle *restrict p) {
   switch (walking) {
   case RANDOMWALK:
     random_walk(p, do_diagonal_movement);
@@ -292,7 +292,7 @@ static inline Color color_by_cycle(const Particle *restrict p) {
                       colors[(p->cycle + 1) % color_c],
                       p->age / (float)MAX_AGE);
 }
-inline Color get_particle_color(const Particle *restrict p) {
+static inline Color get_particle_color(const Particle *restrict p) {
   Color c;
   c = interp_color(colors[(p->cycle) % color_c],
                    colors[(p->cycle + 1) % color_c], p->age / (float)MAX_AGE);
