@@ -21,6 +21,8 @@ static float angle_range = 30;
 static float max_size = 15;
 static float max_speed = 3.0f;
 static float min_speed = 1.0f;
+static float min_temperature = 4400;
+static float max_temperature = 7000;
 Color Blackbody2Rgb(float temp);
 void draw_particle(const Particle *restrict p);
 void particle_step(Particle *restrict p, Vector2 respawn);
@@ -40,21 +42,16 @@ int main() {
   // TODO: Load resources / Initialize variables at this point
   const int particle_count = 1000;
   SetTargetFPS(60);
+  float frame = 0;
   //--------------------------------------------------------------------------------------
-  Particle particles[particle_count];
-  Particle a = {(Vector2){GetScreenWidth() / 2, GetScreenHeight() / 2}, 5,
-                6000};
-  for (int i = 0; i < particle_count; i++)
-    particles[i] =
-        initParticle(GetScreenWidth() / 2.0f, GetScreenHeight(),
-                     random_float_interval(max_size / 4, max_size), 6000);
+  emitter center = initEmitter(
+      particle_count, (Vector2){GetScreenWidth() / 2, GetScreenHeight()});
 
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
-    for (int i = 0; i < particle_count; i++)
-      particle_step(&particles[i],
-                    (Vector2){GetScreenWidth() / 2, GetScreenHeight()});
+    center.position.x = GetScreenWidth() / 2 + 40 * cosf(frame / 100);
+    step_emitter(&center);
     // Update
     //----------------------------------------------------------------------------------
     // TODO: Update variables / Implement example logic at this point
@@ -68,10 +65,10 @@ int main() {
 
     // TODO: Draw everything that requires to be drawn at this point:
 
-    for (int i = 0; i < particle_count; i++)
-      draw_particle(&particles[i]);
+    draw_emitter(&center);
     EndDrawing();
     //----------------------------------------------------------------------------------
+    frame += 1;
   }
 
   // De-Initialization
@@ -165,8 +162,11 @@ Particle initParticle(float x, float y, float size, float temperature) {
                 degtorad(random_float_interval(-angle_range, angle_range)));
   r.velocity =
       v2_scale(r.velocity, random_float_interval(min_speed, max_speed));
-  if (spawn_count % 100 == 0) {
+  // Make sure the particle has a chance of being an ember that lasts longer
+  // than the rest of the flame
+  if (random() % 100 == 0) {
     r.velocity = v2_scale(r.velocity, 1.5);
+    r.temperature *= 2.5;
   }
   r.rotation = random_float_interval(0, 2 * PI);
   r.sides = random_interval(3, 7);
@@ -186,6 +186,10 @@ emitter initEmitter(size_t count, Vector2 position) {
   emitter e;
   e.count = count;
   e.stuff = calloc(count, sizeof(Particle));
+  for (int i = 0; i < count; i++)
+    e.stuff[i] = initParticle(
+        position.x, position.y, random_float_interval(max_speed / 4, max_speed),
+        random_float_interval(min_temperature, max_temperature));
   e.position = position;
   return e;
 }
