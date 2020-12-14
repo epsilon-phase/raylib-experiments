@@ -1,4 +1,4 @@
-Hi, this is my little collection of relatively simple demos I made for the purposes of learning
+Hi, this is our little collection of relatively simple demos we made for the purposes of learning
 raylib properly.
 
 ## List of programs included
@@ -24,3 +24,61 @@ raylib properly.
    A brownian crystal generator.
   
    ![crystal](images/crystal.gif)
+
+
+# Building
+
+## Requirements
+
+* CMake Version >= 3.12
+* A functioning C99 compiler with openmp support
+* A functioning pthreads library
+* POSIX compliance
+
+   Sorry, but we really don't feel like learning windows programming so that we can find
+   the nearest equivalent to nanosleep. If we can help you get it to work on WSL/cygwin or
+   whatever you have then file an issue, we're not familiar with building it under windows
+   and we lack a machine to test it on that has windows running on it.
+
+## Building
+
+Clone the repository:
+
+```
+$> git clone https://github.com/epsilon-phase/raylib-experiments
+```
+
+Fetch the submodules
+
+```
+$> cd raylib-experiments
+$> git submodules --init --recursive
+```
+
+Make the build directory
+
+```
+mkdir build
+cd build
+```
+
+Run CMake to configure it
+
+```
+$> cmake ..
+```
+
+Build it
+
+```
+$> make
+```
+
+Run any of the following as you prefer :)
+
+```
+./crystal
+./nbody
+./rain
+./flame2
+```
