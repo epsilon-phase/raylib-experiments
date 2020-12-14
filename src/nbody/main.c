@@ -209,7 +209,7 @@ int main(void) {
           body_count, sizeof(mass));
       const char *statistics =
           TextFormat("Largest Mass: %.1f\n"
-                     "Largest Radius: %.2f\n"
+                     "Heaviest Radius: %.2f\n"
                      "collision count:%i\n"
                      "simulated time: %.2f seconds\n"
                      "Wall time: %.2f seconds\n"
