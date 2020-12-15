@@ -7,15 +7,16 @@ typedef struct {
   Vector2 velocity;
   float size;
   float temperature;
-  int lifetime;
   float rotation;
   int sides;
+  float mass;
+  bool falling_ember, alive;
 } Particle;
 typedef struct {
   Vector2 position;
-  Vector2 direction;
   Particle *stuff;
   size_t count;
+  bool running;
 } emitter;
 static float angle_range = 30;
 static float max_size = 15;
@@ -23,15 +24,22 @@ static float max_speed = 3.0f;
 static float min_speed = 1.0f;
 static float min_temperature = 4400;
 static float max_temperature = 7000;
+static float min_mass = 0.75;
+static float max_mass = 2;
+static const float heat_transfer_coefficient = 0.5f;
+/// The Medium temperature
+static const float medium_temperature = 275;
+
 Color Blackbody2Rgb(float temp);
 void draw_particle(const Particle *restrict p);
-void particle_step(Particle *restrict p, Vector2 respawn);
+void particle_step(Particle *restrict p);
 emitter initEmitter(size_t count, Vector2 position);
 void draw_emitter(const emitter *restrict e);
 void step_emitter(const emitter *restrict e);
 Particle initParticle(float x, float y, float size, float temperature);
 
 int main() {
+  printf("size of particle: %lu\n", sizeof(Particle));
   // Initialization
   //--------------------------------------------------------------------------------------
   const int screenWidth = 800;
@@ -131,24 +139,50 @@ void draw_particle(const Particle *restrict p) {
   c = v2_add(p->position, v2_scale(c, p->size));
   DrawTriangle(a, c, b, Blackbody2Rgb(p->temperature));
 #endif
-  DrawPoly(p->position, p->sides, p->size, p->rotation * (180 / PI),
-           Blackbody2Rgb(p->temperature));
+  if (p->alive)
+    DrawPoly(p->position, p->sides, p->size, p->rotation * (180 / PI),
+             Blackbody2Rgb(p->temperature));
+// Debug stuff
+#if 0
+  if (p->falling_ember)
+    DrawPolyLines(p->position, p->sides, p->size, p->rotation * (180 / PI),
+                  BLUE);
+#endif
 }
-// TODO: Figure out how to curve it back towards the direction vector in a
-// general sense
-// MAYBE rodrigues' formula, or its inverse
-void particle_step(Particle *restrict p, Vector2 respawn) {
+void cool_particle(Particle *restrict p) {
+  float Q = heat_transfer_coefficient * (p->size) *
+            (p->temperature - medium_temperature);
+  Q /= p->mass;
+  p->temperature -= Q / (60.0f);
+}
+void particle_step(Particle *restrict p) {
+  if (!p->alive)
+    return;
   p->position = v2_add(p->position, v2_scale(p->velocity, 1));
-  p->temperature *= random_float_interval(0.96f, 0.98f);
-  if (p->velocity.x < 0) {
-    p->velocity = v2_rotate(p->velocity, 0.02f);
+
+  if (!p->falling_ember) {
+    // p->temperature *= random_float_interval(0.96f, 0.98f);
+
+    if (p->velocity.x < 0) {
+      p->velocity = v2_rotate(p->velocity, 0.02f);
+    } else {
+      p->velocity = v2_rotate(p->velocity, -0.02f);
+    }
   } else {
-    p->velocity = v2_rotate(p->velocity, -0.02f);
+    // if (p->velocity.y < 1)
+    // p->velocity = v2_rotate(p->velocity, p->velocity.x < 0 ? -0.001 : 0.001);
+    p->velocity = v2_add(p->velocity, (Vector2){0, 0.005});
+    // p->temperature *= random_float_interval(0.996f, 0.998f);
+    if (p->position.y > GetScreenHeight())
+      p->temperature = 0;
   }
+  cool_particle(p);
+
   if (p->temperature < 600) {
-    *p = initParticle(respawn.x, respawn.y,
-                      random_float_interval(max_size / 4, max_size),
-                      random_float_interval(4400, 7000));
+    p->alive = false;
+    // *p = initParticle(respawn.x, respawn.y,
+    //                   random_float_interval(max_size / 4, max_size),
+    //                   random_float_interval(4400, 7000));
   }
 }
 static int spawn_count = 0;
@@ -170,6 +204,9 @@ Particle initParticle(float x, float y, float size, float temperature) {
   }
   r.rotation = random_float_interval(0, 2 * PI);
   r.sides = random_interval(3, 7);
+  r.falling_ember = spawn_count % 5000 == 0;
+  r.mass = random_float_interval(0.75f, r.falling_ember ? 3 : 2);
+  r.alive = true;
   spawn_count++;
   return r;
 }
@@ -179,7 +216,11 @@ void draw_emitter(const emitter *restrict e) {
 }
 void step_emitter(const emitter *restrict e) {
   for (Particle *p = e->stuff; p < e->stuff + e->count; p++) {
-    particle_step(p, e->position);
+    particle_step(p);
+    if (e->running && !p->alive)
+      *p = initParticle(e->position.x, e->position.y,
+                        random_float_interval(max_size / 4, max_size),
+                        random_float_interval(4400, 7700));
   }
 }
 emitter initEmitter(size_t count, Vector2 position) {
@@ -188,8 +229,9 @@ emitter initEmitter(size_t count, Vector2 position) {
   e.stuff = calloc(count, sizeof(Particle));
   for (int i = 0; i < count; i++)
     e.stuff[i] = initParticle(
-        position.x, position.y, random_float_interval(max_speed / 4, max_speed),
+        position.x, position.y, random_float_interval(max_size / 4, max_size),
         random_float_interval(min_temperature, max_temperature));
   e.position = position;
+  e.running = true;
   return e;
 }
