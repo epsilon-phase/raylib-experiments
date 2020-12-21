@@ -143,7 +143,7 @@ void draw_particle(const Particle *restrict p) {
     DrawPoly(p->position, p->sides, p->size, p->rotation * (180 / PI),
              Blackbody2Rgb(p->temperature));
 // Debug stuff
-#if 0
+#ifdef DEBUG_EMBER
   if (p->falling_ember)
     DrawPolyLines(p->position, p->sides, p->size, p->rotation * (180 / PI),
                   BLUE);
@@ -176,6 +176,7 @@ void particle_step(Particle *restrict p) {
     if (p->position.y > GetScreenHeight())
       p->temperature = 0;
   }
+  p->rotation += random_float_interval(-0.01, 0.01);
   cool_particle(p);
 
   if (p->temperature < 600) {
@@ -198,14 +199,16 @@ Particle initParticle(float x, float y, float size, float temperature) {
       v2_scale(r.velocity, random_float_interval(min_speed, max_speed));
   // Make sure the particle has a chance of being an ember that lasts longer
   // than the rest of the flame
-  if (random() % 100 == 0) {
-    r.velocity = v2_scale(r.velocity, 1.5);
+  r.falling_ember = spawn_count % 5000 == 0;
+  r.mass = random_float_interval(min_mass, max_mass);
+  if (r.falling_ember) {
+    r.velocity = v2_scale(r.velocity, 1.2);
     r.temperature *= 2.5;
+    r.mass *= 4;
   }
   r.rotation = random_float_interval(0, 2 * PI);
   r.sides = random_interval(3, 7);
-  r.falling_ember = spawn_count % 5000 == 0;
-  r.mass = random_float_interval(0.75f, r.falling_ember ? 3 : 2);
+
   r.alive = true;
   spawn_count++;
   return r;

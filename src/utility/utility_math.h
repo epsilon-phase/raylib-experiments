@@ -143,6 +143,36 @@ static inline Vector2 v2_reflect(Vector2 velocity, Vector2 normal) {
 static inline Vector2 v2_normalize(Vector2 a) {
   return v2_scale(a, 1.0f / v2_magnitude(a));
 }
+static inline float v2_cross(Vector2 a, Vector2 b) {
+  return a.x * b.y - b.y * a.x;
+}
+/**
+ * @returns True if there is an intersection. Writes to intersection in this
+ * case
+ * */
+static inline bool v2_line_intersect(Vector2 a, Vector2 b, Vector2 c, Vector2 d,
+                                     Vector2 *intersection) {
+  Vector2 p = a, r = v2_sub(b, a);
+  Vector2 q = c, s = v2_sub(d, c);
+  float t = v2_cross(v2_sub(q, p), s) / v2_cross(r, s);
+  float u = v2_cross(v2_sub(p, q), r) / v2_cross(s, r);
+  if (v2_cross(r, s) == 0 && v2_cross(v2_sub(q, p), r) == 0) {
+    // Colinear
+    return false;
+  }
+  if (v2_cross(r, s) == 0 && v2_cross(v2_sub(q, p), r) != 0) {
+    // Parallel, non intersecting
+    return false;
+  }
+  if (v2_cross(r, s) != 0) {
+    if (u >= 0 && u <= 1.0f && t >= 0.0f && t <= 1.0f) {
+      *intersection = v2_add(p, v2_scale(r, t));
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
 // Forgive us for the comments here, we haven't worked on this kinda equation in
 // long enough that we prefer to do some scratch work to make sure the math is
 // right
@@ -154,6 +184,9 @@ static inline float v2_line_slope(Vector2 a, Vector2 b) {
    * (y-y0)/(x-x0)=m
    **/
   return (b.y - a.y) / (b.x - a.x);
+}
+static inline float v2_line_offset(Vector2 a, Vector2 b) {
+  return a.y - v2_line_slope(a, b) * a.x;
 }
 static inline Vector2 v2_normal_line(Vector2 a, Vector2 b) {
   /**

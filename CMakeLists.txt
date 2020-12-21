@@ -24,6 +24,7 @@ add_executable(flame2)
 #Not ready yet
 add_executable(flame)
 add_executable(crystal)
+add_executable(draw)
 target_link_libraries(particle-dabbling raylib utility)
 target_link_libraries(nbody raylib OpenMP::OpenMP_C utility Threads::Threads)
 target_link_libraries(utility raylib)
@@ -33,6 +34,7 @@ target_link_libraries(flame utility raylib)
 target_link_libraries(crystal utility raylib OpenMP::OpenMP_C)
 target_link_libraries(rain utility raylib)
 target_link_libraries(flame2 utility raylib)
+target_link_libraries(draw utility raylib)
 #add_subdirectory(src/particle)
 
 

@@ -6,3 +6,5 @@ add_subdirectory(crystal)
 add_subdirectory(rain)
 add_subdirectory(flame)
 add_subdirectory(flame2)
+
+add_subdirectory(draw)
