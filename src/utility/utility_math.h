@@ -215,3 +215,42 @@ static inline Vector2 v2_rotate(Vector2 a, float angle) {
   return (Vector2){cosf(angle) * a.x - a.y * sinf(angle),
                    a.x * sinf(angle) + a.y * cosf(angle)};
 }
+static inline void v2_bezier3(Vector2 a, Vector2 b, Vector2 c, Vector2 *out,
+                              size_t segments) {
+  float step = 1.0 / (segments-1);
+  float t = 0.0f;
+  for (int i = 0; i < segments; i++) {
+    // b(t)=)(1-t)^2*a+2*(1-t)*b+t^2*c
+    out[i] =
+        v2_add(v2_scale(a, powf(1 - t, 2)),
+               v2_add(v2_scale(b, 2 * (1 - t) * t), v2_scale(c, powf(t, 2))));
+    t += step;
+  }
+}
+static inline int factorial(int i) {
+  int t = 1;
+  for (i = i; i > 0; i--) {
+    t *= i;
+  }
+  return t;
+}
+static inline int binomial_coefficient(int n, int k) {
+  return factorial(n) / (factorial(k) * factorial(n - k));
+}
+static inline void v2_bezier_n(Vector2 *points, size_t count, Vector2 *output,
+                               size_t segments) {
+  float step = 1.0 / segments;
+  float t = 0;
+  for (int s = 0; s < segments; s++) {
+    Vector2 current = (Vector2){0, 0};
+
+    for (int i = 0; i < count; i++) {
+
+      current = v2_add(current,
+                       v2_scale(points[i], powf(1 - t, count - i) * powf(t, i) *
+                                               binomial_coefficient(count, i)));
+    }
+    output[s] = current;
+    t+=step;
+  }
+}

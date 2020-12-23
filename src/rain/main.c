@@ -29,8 +29,8 @@ static void cycle_background(int dir) {
   background_color =
       (background_color + dir) % (sizeof(background_colors) / sizeof(Color));
 }
-inline void draw_raindrop(const raindrop *restrict rd);
-inline bool outside_window(const raindrop *restrict rd);
+static inline void draw_raindrop(const raindrop *restrict rd);
+static inline bool outside_window(const raindrop *restrict rd);
 void step_raindrop(raindrop *restrict rd);
 raindrop init_raindrop();
 int main() {
@@ -81,11 +81,11 @@ int main() {
 
   return 0;
 }
-inline void draw_raindrop(const raindrop *restrict rd) {
+static inline void draw_raindrop(const raindrop *restrict rd) {
   DrawLineEx(rd->pos, v2_add(rd->pos, rd->motion), 2,
              raindrop_colors[raindrop_color]);
 }
-inline bool outside_window(const raindrop *restrict rd) {
+static inline bool outside_window(const raindrop *restrict rd) {
   Vector2 start = rd->pos,
           end = v2_add(rd->pos, v2_scale(rd->motion, rd->speed));
   return (start.x < 0 && end.x < 0) ||
